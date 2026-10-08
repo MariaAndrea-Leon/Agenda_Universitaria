@@ -2,7 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Rutas que se pueden ver sin iniciar sesión.
-const PUBLICAS = ["/", "/ingresar", "/auth"];
+// /api/recordatorios se protege con su propio secreto (CRON_SECRET).
+const PUBLICAS = ["/", "/ingresar", "/auth", "/api/recordatorios"];
 
 function esPublica(ruta: string) {
   return PUBLICAS.some((p) => ruta === p || (p !== "/" && ruta.startsWith(`${p}/`)));

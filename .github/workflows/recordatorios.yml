@@ -1,0 +1,25 @@
+name: Recordatorios
+
+# Cada 15 minutos le pide a la app que mande los recordatorios que tocan.
+# Necesita el secreto CRON_SECRET (el mismo valor que en Vercel). Opcional:
+# la variable AGENDA_URL si la app cambia de dirección.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  enviar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Llamar al programador
+        env:
+          SECRETO: ${{ secrets.CRON_SECRET }}
+          URL: ${{ vars.AGENDA_URL || 'https://agenda-universitaria-zeta.vercel.app' }}
+        run: |
+          if [ -z "$SECRETO" ]; then
+            echo "Falta el secreto CRON_SECRET; no se envía nada."
+            exit 0
+          fi
+          curl -fsS --retry 2 --max-time 60 -H "Authorization: Bearer $SECRETO" "$URL/api/recordatorios"
