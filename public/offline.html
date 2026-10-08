@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sin conexión · Agenda Universitaria</title>
+    <style>
+      :root { color-scheme: light dark; --fondo: #f3f4f5; --texto: #100c08; --tarjeta: #d8e0e1; --boton: #95122c; }
+      @media (prefers-color-scheme: dark) { :root { --fondo: #051f20; --texto: #daf1de; --tarjeta: #163832; --boton: #8eb69b; } }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--fondo); color: var(--texto);
+             font-family: system-ui, -apple-system, "Segoe UI", sans-serif; padding: 16px; box-sizing: border-box; }
+      main { max-width: 26rem; background: var(--tarjeta); border-radius: 1rem; padding: 1.5rem; text-align: center; }
+      img { width: 72px; height: 72px; }
+      h1 { font-size: 1.4rem; margin: 0.75rem 0 0.5rem; }
+      p { margin: 0 0 1rem; line-height: 1.5; }
+      button { background: var(--boton); color: var(--fondo); border: 0; border-radius: 0.75rem; padding: 0.6rem 1.2rem; font: inherit; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/iconos/icono-192.png" alt="" />
+      <h1>Sin conexión</h1>
+      <p>No hay internet en este momento. Cuando vuelva la conexión, tu agenda se carga de nuevo.</p>
+      <button type="button" onclick="location.reload()">Reintentar</button>
+    </main>
+  </body>
+</html>

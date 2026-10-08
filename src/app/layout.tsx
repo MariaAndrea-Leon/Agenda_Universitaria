@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
+import { RegistrarSW } from "@/components/registrar-sw";
 import { COOKIE_MODO, COOKIE_TEMA, cssDeTemas } from "@/lib/temas/css";
 import { MODO_POR_DEFECTO, TEMA_POR_DEFECTO, esModo, esTemaId } from "@/lib/temas/temas";
 import "./globals.css";
@@ -18,6 +19,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Agenda Universitaria",
   description: "Clases, tareas, exámenes y notas de la universidad en un solo lugar.",
+  applicationName: "Agenda Universitaria",
+  appleWebApp: { capable: true, title: "Agenda", statusBarStyle: "default" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#95122C",
 };
 
 export default async function RootLayout({
@@ -40,6 +47,7 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
       >
         {children}
+        <RegistrarSW />
       </body>
     </html>
   );
