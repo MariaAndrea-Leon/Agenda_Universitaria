@@ -62,3 +62,42 @@ export const COLORES_MATERIA = [
   "#7A2E77",
   "#5B4636",
 ] as const;
+
+export interface Tarea {
+  id: string;
+  materia_id: string;
+  titulo: string;
+  descripcion: string | null;
+  entrega: string; // ISO
+  prioridad: "baja" | "media" | "alta";
+  completada_en: string | null;
+}
+
+export const PRIORIDADES: { valor: Tarea["prioridad"]; nombre: string }[] = [
+  { valor: "alta", nombre: "Alta" },
+  { valor: "media", nombre: "Media" },
+  { valor: "baja", nombre: "Baja" },
+];
+
+export interface Evaluacion {
+  id: string;
+  materia_id: string;
+  nombre: string;
+  tipo: "examen" | "quiz" | "taller" | "exposicion" | "proyecto" | "otro";
+  porcentaje: number;
+  fecha: string | null; // ISO
+  salon: string | null;
+  temas: string | null;
+  nota: number | null;
+}
+
+export const TIPOS_EVALUACION: { valor: Evaluacion["tipo"]; nombre: string }[] = [
+  { valor: "examen", nombre: "Examen" },
+  { valor: "quiz", nombre: "Quiz" },
+  { valor: "taller", nombre: "Taller" },
+  { valor: "exposicion", nombre: "Exposición" },
+  { valor: "proyecto", nombre: "Proyecto" },
+  { valor: "otro", nombre: "Otro" },
+];
+
+export type MateriaCorta = Pick<Materia, "id" | "nombre" | "color">;

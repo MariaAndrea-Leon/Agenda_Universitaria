@@ -7,7 +7,7 @@ export default async function Inicio() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (user) redirect("/horario");
+  if (user) redirect("/hoy");
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-3xl flex-col justify-center gap-6 p-4 sm:p-8">
