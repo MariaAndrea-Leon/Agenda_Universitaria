@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { TEMAS, contraste } from "./temas";
+import { COLORES_MATERIA } from "@/lib/modelos";
 
 const TEXTO_NORMAL = 4.5;
 const TEXTO_GRANDE = 3;
@@ -25,5 +26,11 @@ describe.each(Object.values(TEMAS))("tema $nombre", (tema) => {
 
   it("la alerta se lee al menos como texto grande", () => {
     expect(contraste(c.sobreAlerta, c.alerta)).toBeGreaterThanOrEqual(TEXTO_GRANDE);
+  });
+});
+
+describe("colores de materia", () => {
+  it.each(COLORES_MATERIA)("%s deja leer texto blanco", (color) => {
+    expect(contraste("#FFFFFF", color)).toBeGreaterThanOrEqual(TEXTO_NORMAL);
   });
 });

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { SCRIPT_TEMA_INICIAL, cssDeTemas } from "@/lib/temas/css";
+import { cookies } from "next/headers";
+import { COOKIE_TEMA, cssDeTemas } from "@/lib/temas/css";
+import { TEMA_POR_DEFECTO, esTemaId } from "@/lib/temas/temas";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,16 +20,18 @@ export const metadata: Metadata = {
   description: "Clases, tareas, exámenes y notas de la universidad en un solo lugar.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const guardado = (await cookies()).get(COOKIE_TEMA)?.value;
+  const tema = esTemaId(guardado) ? guardado : TEMA_POR_DEFECTO;
+
   return (
-    <html lang="es" suppressHydrationWarning>
+    <html lang="es" data-tema={tema}>
       <head>
         <style dangerouslySetInnerHTML={{ __html: cssDeTemas() }} />
-        <script dangerouslySetInnerHTML={{ __html: SCRIPT_TEMA_INICIAL }} />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}

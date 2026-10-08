@@ -1,32 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { CLAVE_TEMA } from "@/lib/temas/css";
-import { TEMAS, TEMA_POR_DEFECTO, esTemaId, type TemaId } from "@/lib/temas/temas";
+import { useState } from "react";
+import { TEMAS, type TemaId } from "@/lib/temas/temas";
 
-// Por ahora el tema se guarda en el navegador; en la fase 1 pasa al perfil
-// del usuario (columna perfiles.tema) para que se sincronice entre equipos.
-export function SelectorTema() {
-  const [tema, setTema] = useState<TemaId>(TEMA_POR_DEFECTO);
-
-  useEffect(() => {
-    const actual = document.documentElement.dataset.tema;
-    if (esTemaId(actual)) setTema(actual);
-  }, []);
+// Radios con los temas disponibles. Al cambiar, el tema se aplica de una
+// vez como vista previa; se guarda cuando se envía el formulario.
+export function SelectorTema({ inicial }: { inicial: TemaId }) {
+  const [tema, setTema] = useState<TemaId>(inicial);
 
   function elegir(id: TemaId) {
     setTema(id);
     document.documentElement.dataset.tema = id;
-    try {
-      localStorage.setItem(CLAVE_TEMA, id);
-    } catch {
-      // Sin almacenamiento (modo privado): el tema dura solo esta visita.
-    }
   }
 
   return (
     <fieldset className="grid gap-3 sm:grid-cols-2">
-      <legend className="mb-2 font-semibold">Tema de color</legend>
+      <legend className="mb-2 text-sm font-medium">Tema de color</legend>
       {Object.values(TEMAS).map((t) => (
         <label
           key={t.id}

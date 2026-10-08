@@ -29,14 +29,30 @@ las notas de la universidad, con promedio ponderado en escala de 0,0 a 5,0.
 
 ## Base de datos
 
-El esquema está en `supabase/migrations/`. Para aplicarlo a tu proyecto de
-Supabase puedes pegar el archivo SQL en el editor SQL del panel, o usar la
-CLI de Supabase (`supabase link` y luego `supabase db push`).
+El esquema está en `supabase/migrations/` (aplicar en orden):
 
-Tablas: `perfiles`, `semestres`, `materias`, `bloques_horario`, `tareas`,
-`evaluaciones` (exámenes y actividades calificables, con porcentaje y nota),
-`recordatorios` y `suscripciones_push`. Todas tienen Row Level Security: cada
-usuario solo ve sus propios datos.
+1. `…_esquema_inicial.sql`: tablas `perfiles`, `semestres`, `materias`,
+   `bloques_horario`, `tareas`, `evaluaciones`, `recordatorios` y
+   `suscripciones_push`, todas con Row Level Security (cada usuario solo ve
+   sus propios datos).
+2. `…_activar_semestre.sql`: función para cambiar el semestre activo.
+
+### Conectar el proyecto de Supabase
+
+1. En el panel de Supabase, abre **SQL Editor**, pega cada archivo de
+   `supabase/migrations/` en orden y ejecútalo. (Con la CLI: `npx supabase link`
+   y luego `npx supabase db push`.)
+2. En **Authentication > URL Configuration**, pon como *Site URL* la dirección
+   donde corre la app (por ejemplo la de Vercel) y agrega
+   `https://tu-app.vercel.app/auth/confirmar` y `http://localhost:3000/auth/confirmar`
+   en *Redirect URLs*. Ese es el destino del correo de confirmación.
+3. En **Project Settings > API** copia *Project URL* y la clave *anon public* a
+   `.env.local` (y a las variables de entorno de Vercel).
+
+### Supabase local (opcional)
+
+Con Docker instalado, `npx supabase start` levanta una copia local con las
+migraciones aplicadas e imprime la URL y la clave anon para `.env.local`.
 
 ## Temas de color
 
@@ -60,8 +76,12 @@ alerta, primario, texto) que se usan en Tailwind como `bg-primario`,
 src/
   app/               Páginas (App Router)
   components/        Componentes de interfaz
+  app/(app)/         Páginas con sesión: horario, materias, semestres, perfil
+  app/ingresar/      Inicio de sesión y registro
+  app/auth/          Confirmación de correo y cierre de sesión
+  lib/horario/       Lógica del horario (cruces, grilla) con pruebas
   lib/temas/         Temas de color y cálculo de contraste
-  lib/supabase/      Clientes de Supabase (navegador y servidor)
+  lib/supabase/      Clientes de Supabase y middleware de sesión
 supabase/migrations/ Esquema de la base de datos
 ```
 

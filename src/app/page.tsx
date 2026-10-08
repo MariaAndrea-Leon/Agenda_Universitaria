@@ -1,43 +1,40 @@
-import { SelectorTema } from "@/components/selector-tema";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { crearClienteServidor } from "@/lib/supabase/servidor";
 
-// Página provisional de la fase 0: muestra los temas aplicados a piezas
-// típicas de la agenda. Se reemplaza por el panel "Hoy" en la fase 2.
-export default function Inicio() {
+export default async function Inicio() {
+  const supabase = await crearClienteServidor();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) redirect("/horario");
+
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-6 p-4 sm:p-8">
-      <header className="degradado-tema rounded-2xl p-6 text-sobre-primario">
-        <p className="text-sm opacity-90">Agenda Universitaria</p>
-        <h1 className="text-3xl font-bold">Hoy</h1>
-        <p className="mt-1 opacity-90">Vista previa de los temas · fase 0</p>
+    <main className="mx-auto flex min-h-dvh max-w-3xl flex-col justify-center gap-6 p-4 sm:p-8">
+      <header className="degradado-tema rounded-2xl p-8 text-sobre-primario">
+        <h1 className="text-3xl font-bold sm:text-4xl">Agenda Universitaria</h1>
+        <p className="mt-2 text-lg opacity-90">
+          Tu horario, tareas, exámenes y notas de la universidad en un solo lugar.
+        </p>
       </header>
-
-      <section className="rounded-2xl bg-superficie p-4 sm:p-6">
-        <SelectorTema />
-      </section>
-
-      <section className="grid gap-4 sm:grid-cols-2">
-        <article className="rounded-2xl bg-superficie p-4">
-          <p className="text-sm opacity-80">8:00 a 10:00 · Salón 203</p>
-          <h2 className="text-lg font-semibold">Cálculo diferencial</h2>
-          <p className="mt-2 inline-block rounded-full bg-acento px-3 py-1 text-sm font-medium text-sobre-acento">
-            Clase
-          </p>
-        </article>
-        <article className="rounded-2xl bg-superficie p-4">
-          <p className="text-sm opacity-80">Entrega mañana</p>
-          <h2 className="text-lg font-semibold">Taller de física</h2>
-          <p className="mt-2 inline-block rounded-full bg-alerta px-3 py-1 text-sm font-bold text-sobre-alerta">
-            Próxima entrega
-          </p>
-        </article>
-      </section>
-
-      <button
-        type="button"
+      <ul className="grid gap-3 sm:grid-cols-3">
+        {[
+          ["Horario semanal", "Materias con color, salón y aviso si se cruzan."],
+          ["Tareas y exámenes", "Todo lo que tienes que entregar, por fecha."],
+          ["Notas y promedio", "Escala de 0 a 5 y cuánto necesitas para pasar."],
+        ].map(([titulo, texto]) => (
+          <li key={titulo} className="rounded-2xl bg-superficie p-4">
+            <p className="font-semibold">{titulo}</p>
+            <p className="text-sm opacity-80">{texto}</p>
+          </li>
+        ))}
+      </ul>
+      <Link
+        href="/ingresar"
         className="self-start rounded-xl bg-primario px-5 py-2.5 font-medium text-sobre-primario"
       >
-        Agregar materia
-      </button>
+        Entrar o crear cuenta
+      </Link>
     </main>
   );
 }
