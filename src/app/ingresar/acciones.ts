@@ -50,7 +50,7 @@ export async function iniciarSesion(_: EstadoIngreso, datos: FormData): Promise<
   if (esTemaId(perfil?.tema)) await guardarTemaEnCookie(perfil.tema);
   if (esModo(perfil?.modo)) await guardarModoEnCookie(perfil.modo);
 
-  redirect("/horario");
+  redirect("/hoy");
 }
 
 const registro = credenciales.extend({

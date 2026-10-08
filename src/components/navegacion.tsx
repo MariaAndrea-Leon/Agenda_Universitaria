@@ -5,6 +5,10 @@ import { usePathname } from "next/navigation";
 import { BotonModo } from "./boton-modo";
 
 const ENLACES = [
+  { href: "/hoy", nombre: "Hoy" },
+  { href: "/calendario", nombre: "Calendario" },
+  { href: "/tareas", nombre: "Tareas" },
+  { href: "/evaluaciones", nombre: "Exámenes" },
   { href: "/horario", nombre: "Horario" },
   { href: "/materias", nombre: "Materias" },
   { href: "/semestres", nombre: "Semestres" },
