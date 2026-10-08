@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { datosDe, primerError, volverCon } from "@/lib/acciones";
+import { datosDe, primerError, conDetalle, volverCon } from "@/lib/acciones";
 import { leerNota } from "@/lib/notas";
 import { requerirUsuario } from "@/lib/sesion";
 import { guardarModoEnCookie, guardarTemaEnCookie } from "@/lib/tema-cookie";
@@ -36,7 +36,7 @@ export async function guardarPerfil(formulario: FormData) {
     .from("perfiles")
     .update({ nombre: nombre ?? null, universidad: universidad ?? null, carrera: carrera ?? null, tema, modo, nota_aprobatoria })
     .eq("id", usuario.id);
-  if (error) volverCon("/perfil", "error", "No se pudo guardar el perfil.");
+  if (error) volverCon("/perfil", "error", conDetalle("No se pudo guardar el perfil.", error));
 
   await guardarTemaEnCookie(tema);
   await guardarModoEnCookie(modo);
@@ -51,7 +51,7 @@ export async function cambiarEnlaceCalendario() {
     .from("perfiles")
     .update({ token_calendario: crypto.randomUUID() })
     .eq("id", usuario.id);
-  if (error) volverCon("/perfil", "error", "No se pudo cambiar el enlace.");
+  if (error) volverCon("/perfil", "error", conDetalle("No se pudo cambiar el enlace.", error));
   revalidatePath("/perfil");
   volverCon("/perfil", "ok", "Enlace del calendario cambiado. El anterior ya no funciona.");
 }

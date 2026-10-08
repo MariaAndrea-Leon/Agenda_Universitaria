@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { datosDe, primerError, volverCon } from "@/lib/acciones";
+import { datosDe, primerError, conDetalle, volverCon } from "@/lib/acciones";
 import { requerirUsuario } from "@/lib/sesion";
 
 const RUTA = "/semestres";
@@ -22,11 +22,12 @@ export async function crearSemestre(formulario: FormData) {
   const { supabase } = await requerirUsuario();
   const { count } = await supabase.from("semestres").select("id", { count: "exact", head: true });
   const { data, error } = await supabase.from("semestres").insert(entrada.data).select("id").single();
-  if (error) volverCon(RUTA, "error", "No se pudo crear el semestre.");
+  if (error) volverCon(RUTA, "error", conDetalle("No se pudo crear el semestre.", error));
 
   // El primer semestre, o uno marcado así, queda como activo.
   if (count === 0 || formulario.get("activar") === "on") {
-    await supabase.rpc("activar_semestre", { semestre: data.id });
+    const { error: alActivar } = await supabase.rpc("activar_semestre", { semestre: data.id });
+    if (alActivar) volverCon(RUTA, "error", conDetalle("El semestre se creó, pero no se pudo marcar como activo.", alActivar));
   }
   revalidatePath("/", "layout");
   volverCon(RUTA, "ok", "Semestre creado.");
@@ -36,7 +37,7 @@ export async function activarSemestre(formulario: FormData) {
   const id = z.string().uuid().parse(formulario.get("id"));
   const { supabase } = await requerirUsuario();
   const { error } = await supabase.rpc("activar_semestre", { semestre: id });
-  if (error) volverCon(RUTA, "error", "No se pudo activar el semestre.");
+  if (error) volverCon(RUTA, "error", conDetalle("No se pudo activar el semestre.", error));
   revalidatePath("/", "layout");
   volverCon(RUTA, "ok", "Semestre activo cambiado.");
 }
@@ -45,7 +46,7 @@ export async function eliminarSemestre(formulario: FormData) {
   const id = z.string().uuid().parse(formulario.get("id"));
   const { supabase } = await requerirUsuario();
   const { error } = await supabase.from("semestres").delete().eq("id", id);
-  if (error) volverCon(RUTA, "error", "No se pudo eliminar el semestre.");
+  if (error) volverCon(RUTA, "error", conDetalle("No se pudo eliminar el semestre.", error));
   revalidatePath("/", "layout");
   volverCon(RUTA, "ok", "Semestre eliminado con sus materias.");
 }

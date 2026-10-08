@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { datosDe, primerError, volverCon } from "@/lib/acciones";
+import { datosDe, primerError, conDetalle, volverCon } from "@/lib/acciones";
 import { requerirUsuario, zonaDelUsuario } from "@/lib/sesion";
 import { localAInstante } from "@/lib/zona";
 
@@ -38,7 +38,7 @@ export async function crearTarea(formulario: FormData) {
     descripcion: entrada.data.descripcion ?? null,
     entrega: localAInstante(entrada.data.entrega, zona).toISOString(),
   });
-  if (error) volverCon(ruta, "error", "No se pudo guardar la tarea.", conservar);
+  if (error) volverCon(ruta, "error", conDetalle("No se pudo guardar la tarea.", error), conservar);
 
   revalidatePath("/", "layout");
   volverCon(ruta, "ok", "Tarea agregada.");

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { z } from "zod";
-import { volverCon } from "@/lib/acciones";
+import { conDetalle, volverCon } from "@/lib/acciones";
 import { enviarPush, pushConfigurado } from "@/lib/envios";
 import { ANTICIPACIONES } from "@/lib/recordatorios";
 import { requerirUsuario } from "@/lib/sesion";
@@ -24,7 +24,7 @@ export async function guardarAvisos(formulario: FormData) {
       avisos_antes: antes,
     })
     .eq("id", usuario.id);
-  if (error) volverCon("/perfil", "error", "No se pudieron guardar los recordatorios.");
+  if (error) volverCon("/perfil", "error", conDetalle("No se pudieron guardar los recordatorios.", error));
   revalidatePath("/perfil");
   volverCon("/perfil", "ok", "Recordatorios guardados.");
 }

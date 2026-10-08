@@ -4,9 +4,10 @@ import { Boton } from "@/components/boton";
 import { Campo } from "@/components/campo";
 import { CamposMateria } from "@/components/campos-materia";
 import { Mensajes } from "@/components/mensajes";
+import { Pizarron } from "@/components/pizarron";
 import { DIAS, formatoHora } from "@/lib/horario/horario";
 import { ResumenNotas } from "@/components/notas";
-import { TIPOS_BLOQUE, TIPOS_EVALUACION, type Bloque, type Evaluacion, type Materia } from "@/lib/modelos";
+import { TIPOS_BLOQUE, TIPOS_EVALUACION, type Apunte, type Bloque, type Evaluacion, type Materia } from "@/lib/modelos";
 import { formatoNota, leerNota, resumenMateria } from "@/lib/notas";
 import { notaAprobatoria, requerirUsuario, zonaDelUsuario } from "@/lib/sesion";
 import { fechaHora } from "@/lib/zona";
@@ -24,8 +25,14 @@ export default async function PaginaMateria({
   // Valores del formulario de horario que se conservan tras un error.
   const { error, ok, dia_semana, hora_inicio, hora_fin, salon, tipo, meta: metaTexto } = await searchParams;
   const { supabase, usuario } = await requerirUsuario();
-  const [{ data }, aprobatoria, zona] = await Promise.all([
+  const [{ data }, { data: apuntes }, aprobatoria, zona] = await Promise.all([
     supabase.from("materias").select("*, bloques_horario(*), evaluaciones(*)").eq("id", id).maybeSingle(),
+    supabase
+      .from("apuntes")
+      .select("*")
+      .eq("materia_id", id)
+      .order("fecha", { ascending: false })
+      .order("creado_en", { ascending: false }),
     notaAprobatoria(supabase, usuario.id),
     zonaDelUsuario(supabase, usuario.id),
   ]);
@@ -52,6 +59,8 @@ export default async function PaginaMateria({
         Volver a materias
       </Link>
       <Mensajes error={error} ok={ok} />
+
+      <Pizarron materiaId={materia.id} apuntes={(apuntes ?? []) as Apunte[]} />
 
       <section id="notas" className="flex flex-col gap-4 rounded-2xl bg-superficie p-4 sm:p-6">
         <div className="flex flex-wrap items-end justify-between gap-3">

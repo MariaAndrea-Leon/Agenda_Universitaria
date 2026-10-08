@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { datosDe, primerError, volverCon } from "@/lib/acciones";
+import { datosDe, primerError, conDetalle, volverCon } from "@/lib/acciones";
 import { choquesCon, DIAS, formatoHora } from "@/lib/horario/horario";
 import { COLORES_MATERIA, type Bloque } from "@/lib/modelos";
 import { requerirUsuario, semestreActivo } from "@/lib/sesion";
@@ -39,7 +39,7 @@ export async function crearMateria(formulario: FormData) {
     .insert({ ...filaMateria(entrada.data), semestre_id: semestre.id })
     .select("id")
     .single();
-  if (error) volverCon("/materias", "error", "No se pudo crear la materia.");
+  if (error) volverCon("/materias", "error", conDetalle("No se pudo crear la materia.", error));
 
   revalidatePath("/", "layout");
   // A la página de la materia, para agregarle el horario de una vez.
@@ -54,7 +54,7 @@ export async function editarMateria(formulario: FormData) {
 
   const { supabase } = await requerirUsuario();
   const { error } = await supabase.from("materias").update(filaMateria(entrada.data)).eq("id", id);
-  if (error) volverCon(ruta, "error", "No se pudo guardar la materia.");
+  if (error) volverCon(ruta, "error", conDetalle("No se pudo guardar la materia.", error));
 
   revalidatePath("/", "layout");
   volverCon(ruta, "ok", "Materia guardada.");
@@ -64,7 +64,7 @@ export async function eliminarMateria(formulario: FormData) {
   const id = z.string().uuid().parse(formulario.get("id"));
   const { supabase } = await requerirUsuario();
   const { error } = await supabase.from("materias").delete().eq("id", id);
-  if (error) volverCon(`/materias/${id}`, "error", "No se pudo eliminar la materia.");
+  if (error) volverCon(`/materias/${id}`, "error", conDetalle("No se pudo eliminar la materia.", error));
 
   revalidatePath("/", "layout");
   volverCon("/materias", "ok", "Materia eliminada.");
