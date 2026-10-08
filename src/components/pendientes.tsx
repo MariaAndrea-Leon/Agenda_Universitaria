@@ -3,6 +3,7 @@ import { Boton } from "@/components/boton";
 import { Campo } from "@/components/campo";
 import type { EvaluacionConMateria, TareaConMateria } from "@/lib/consultas";
 import { PRIORIDADES, TIPOS_EVALUACION, type MateriaCorta } from "@/lib/modelos";
+import { formatoNota } from "@/lib/notas";
 import { cuandoEs, diaEnZona, fechaHora } from "@/lib/zona";
 
 const ESTILO_SELECT = "rounded-lg border border-texto/20 bg-fondo px-3 py-2 text-base font-normal";
@@ -99,6 +100,11 @@ export function ItemEvaluacion({
       <div className="min-w-0 flex-1">
         <p className="font-medium">
           {e.nombre} <span className="text-sm font-normal opacity-80">· {Number(e.porcentaje)} %</span>
+          {e.nota != null && (
+            <span className="ml-2 rounded-full bg-primario px-2 py-0.5 text-xs font-bold text-sobre-primario">
+              Nota {formatoNota(Number(e.nota))}
+            </span>
+          )}
         </p>
         <p className="text-sm opacity-80">
           {[e.materia.nombre, tipo, e.fecha ? fechaHora(e.fecha, zona) : "Sin fecha", e.salon && `Salón ${e.salon}`]

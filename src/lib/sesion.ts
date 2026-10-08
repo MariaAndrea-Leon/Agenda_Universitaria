@@ -26,3 +26,13 @@ export async function zonaDelUsuario(
   const { data } = await supabase.from("perfiles").select("zona_horaria").eq("id", usuarioId).maybeSingle();
   return data?.zona_horaria || ZONA_POR_DEFECTO;
 }
+
+// Nota mínima para aprobar que el estudiante configuró (3,0 por defecto).
+export async function notaAprobatoria(
+  supabase: Awaited<ReturnType<typeof crearClienteServidor>>,
+  usuarioId: string,
+): Promise<number> {
+  const { data } = await supabase.from("perfiles").select("nota_aprobatoria").eq("id", usuarioId).maybeSingle();
+  const n = Number(data?.nota_aprobatoria);
+  return Number.isFinite(n) && data?.nota_aprobatoria != null ? n : 3;
+}

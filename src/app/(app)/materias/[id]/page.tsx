@@ -5,8 +5,12 @@ import { Campo } from "@/components/campo";
 import { CamposMateria } from "@/components/campos-materia";
 import { Mensajes } from "@/components/mensajes";
 import { DIAS, formatoHora } from "@/lib/horario/horario";
-import { TIPOS_BLOQUE, type Bloque, type Materia } from "@/lib/modelos";
-import { requerirUsuario } from "@/lib/sesion";
+import { ResumenNotas } from "@/components/notas";
+import { TIPOS_BLOQUE, TIPOS_EVALUACION, type Bloque, type Evaluacion, type Materia } from "@/lib/modelos";
+import { formatoNota, leerNota, resumenMateria } from "@/lib/notas";
+import { notaAprobatoria, requerirUsuario, zonaDelUsuario } from "@/lib/sesion";
+import { fechaHora } from "@/lib/zona";
+import { guardarNotas } from "../../notas/acciones";
 import { agregarBloque, editarMateria, eliminarBloque, eliminarMateria } from "../acciones";
 
 export default async function PaginaMateria({
@@ -18,12 +22,22 @@ export default async function PaginaMateria({
 }) {
   const { id } = await params;
   // Valores del formulario de horario que se conservan tras un error.
-  const { error, ok, dia_semana, hora_inicio, hora_fin, salon, tipo } = await searchParams;
-  const { supabase } = await requerirUsuario();
-  const { data } = await supabase.from("materias").select("*, bloques_horario(*)").eq("id", id).maybeSingle();
+  const { error, ok, dia_semana, hora_inicio, hora_fin, salon, tipo, meta: metaTexto } = await searchParams;
+  const { supabase, usuario } = await requerirUsuario();
+  const [{ data }, aprobatoria, zona] = await Promise.all([
+    supabase.from("materias").select("*, bloques_horario(*), evaluaciones(*)").eq("id", id).maybeSingle(),
+    notaAprobatoria(supabase, usuario.id),
+    zonaDelUsuario(supabase, usuario.id),
+  ]);
   if (!data) notFound();
 
-  const materia = data as Materia & { bloques_horario: Bloque[] };
+  const materia = data as Materia & { bloques_horario: Bloque[]; evaluaciones: Evaluacion[] };
+  const evaluaciones = [...materia.evaluaciones].sort(
+    (a, b) => (a.fecha ?? "9999").localeCompare(b.fecha ?? "9999") || a.creado_en.localeCompare(b.creado_en),
+  );
+  // La meta de la calculadora llega por la URL (?meta=4,0); si no, la nota aprobatoria.
+  const meta = leerNota(metaTexto) ?? aprobatoria;
+  const resumen = resumenMateria(evaluaciones, meta);
   const bloques = [...materia.bloques_horario].sort(
     (a, b) => a.dia_semana - b.dia_semana || a.hora_inicio.localeCompare(b.hora_inicio),
   );
@@ -38,6 +52,76 @@ export default async function PaginaMateria({
         Volver a materias
       </Link>
       <Mensajes error={error} ok={ok} />
+
+      <section id="notas" className="flex flex-col gap-4 rounded-2xl bg-superficie p-4 sm:p-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <h2 className="text-lg font-semibold">Notas</h2>
+          <form className="flex items-end gap-2" aria-label="Calculadora de nota necesaria">
+            <label className="flex flex-col gap-1 text-sm font-medium">
+              Meta
+              <input
+                name="meta"
+                inputMode="decimal"
+                defaultValue={formatoNota(meta)}
+                pattern="[0-5]([,.][0-9])?"
+                title="Una nota de 0,0 a 5,0"
+                className="w-20 rounded-lg border border-texto/20 bg-fondo px-3 py-2 text-base font-normal"
+              />
+            </label>
+            <Boton type="submit" variante="secundario">
+              Calcular
+            </Boton>
+          </form>
+        </div>
+        <ResumenNotas resumen={resumen} meta={meta} />
+
+        {evaluaciones.length === 0 ? (
+          <p className="text-sm">
+            Todavía no hay plan de evaluación.{" "}
+            <Link href={`/evaluaciones?materia_id=${materia.id}`} className="font-medium underline">
+              Agrega los parciales y lo que vale cada uno
+            </Link>
+            .
+          </p>
+        ) : (
+          <form key={`${error}${ok}`} action={guardarNotas} className="flex flex-col gap-3 border-t border-texto/15 pt-4">
+            <input type="hidden" name="materia_id" value={materia.id} />
+            <ul className="flex flex-col gap-2">
+              {evaluaciones.map((e) => (
+                <li key={e.id} className="flex items-center gap-3 rounded-xl bg-fondo px-3 py-2">
+                  <span className="min-w-0 flex-1">
+                    <span className="font-medium">{e.nombre}</span>{" "}
+                    <span className="text-sm opacity-80">· {formatoNota(Number(e.porcentaje), Number(e.porcentaje) % 1 ? 1 : 0)} %</span>
+                    <span className="block text-sm opacity-80">
+                      {[TIPOS_EVALUACION.find((t) => t.valor === e.tipo)?.nombre, e.fecha ? fechaHora(e.fecha, zona) : "Sin fecha"]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  </span>
+                  <label className="flex items-center gap-2 text-sm">
+                    <span className="sr-only">Nota de {e.nombre}</span>
+                    <input
+                      name={`nota_${e.id}`}
+                      inputMode="decimal"
+                      defaultValue={e.nota == null ? "" : formatoNota(Number(e.nota))}
+                      placeholder="—"
+                      pattern="[0-5]([,.][0-9])?"
+                      title="Una nota de 0,0 a 5,0"
+                      className="w-16 rounded-lg border border-texto/20 bg-superficie px-2 py-1.5 text-center text-base font-semibold"
+                    />
+                  </label>
+                </li>
+              ))}
+            </ul>
+            <div className="flex flex-wrap items-center gap-3">
+              <Boton type="submit">Guardar notas</Boton>
+              <Link href={`/evaluaciones?materia_id=${materia.id}`} className="text-sm underline">
+                Agregar evaluación al plan
+              </Link>
+            </div>
+          </form>
+        )}
+      </section>
 
       <section className="flex flex-col gap-4 rounded-2xl bg-superficie p-4 sm:p-6">
         <h2 className="text-lg font-semibold">Horario</h2>

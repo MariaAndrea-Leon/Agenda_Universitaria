@@ -15,7 +15,8 @@ export default async function PaginaEvaluaciones({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const { error, ok, ...previosTodos } = await searchParams;
-  const previos = error ? previosTodos : {};
+  // Desde una materia se llega con ?materia_id= para dejarla elegida.
+  const previos = error ? previosTodos : { materia_id: previosTodos.materia_id };
   const { supabase, usuario } = await requerirUsuario();
   const semestre = await semestreActivo(supabase);
   if (!semestre) return <SinSemestre titulo="Exámenes" />;
