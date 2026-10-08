@@ -2,7 +2,7 @@
 // - Guarda los archivos estáticos (_next/static, íconos) para abrir rápido.
 // - Las páginas siempre se piden a la red, porque tienen datos privados; si
 //   no hay conexión se muestra /offline.html.
-const VERSION = "v1";
+const VERSION = "v2";
 const ESTATICOS = `agenda-estaticos-${VERSION}`;
 const PAGINA_SIN_RED = "/offline.html";
 
@@ -50,4 +50,39 @@ self.addEventListener("fetch", (evento) => {
       ),
     );
   }
+});
+
+// Recordatorios: el servidor manda { titulo, cuerpo, url }.
+self.addEventListener("push", (evento) => {
+  let datos = {};
+  try {
+    datos = evento.data ? evento.data.json() : {};
+  } catch {
+    datos = { titulo: evento.data ? evento.data.text() : "" };
+  }
+  evento.waitUntil(
+    self.registration.showNotification(datos.titulo || "Agenda Universitaria", {
+      body: datos.cuerpo || "",
+      icon: "/iconos/icono-192.png",
+      badge: "/iconos/icono-192.png",
+      data: { url: datos.url || "/hoy" },
+      lang: "es",
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (evento) => {
+  evento.notification.close();
+  const destino = new URL(evento.notification.data?.url || "/hoy", self.location.origin).href;
+  evento.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((ventanas) => {
+      for (const v of ventanas) {
+        if (v.url.startsWith(self.location.origin) && "focus" in v) {
+          v.navigate(destino);
+          return v.focus();
+        }
+      }
+      return self.clients.openWindow(destino);
+    }),
+  );
 });

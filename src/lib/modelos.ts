@@ -11,6 +11,9 @@ export interface Perfil {
   tema: TemaId;
   modo: Modo;
   nota_aprobatoria: number;
+  avisos_push: boolean;
+  avisos_correo: boolean;
+  avisos_antes: number[];
 }
 
 export interface Semestre {
