@@ -4,8 +4,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
-import { guardarTemaEnCookie } from "@/lib/tema-cookie";
-import { esTemaId } from "@/lib/temas/temas";
+import { guardarModoEnCookie, guardarTemaEnCookie } from "@/lib/tema-cookie";
+import { esModo, esTemaId } from "@/lib/temas/temas";
 
 export interface EstadoIngreso {
   error?: string;
@@ -46,8 +46,9 @@ export async function iniciarSesion(_: EstadoIngreso, datos: FormData): Promise<
   });
   if (error) return { ...previo, error: traducirError(error.message) };
 
-  const { data: perfil } = await supabase.from("perfiles").select("tema").eq("id", data.user.id).maybeSingle();
+  const { data: perfil } = await supabase.from("perfiles").select("tema, modo").eq("id", data.user.id).maybeSingle();
   if (esTemaId(perfil?.tema)) await guardarTemaEnCookie(perfil.tema);
+  if (esModo(perfil?.modo)) await guardarModoEnCookie(perfil.modo);
 
   redirect("/horario");
 }

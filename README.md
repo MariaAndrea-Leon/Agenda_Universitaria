@@ -36,6 +36,7 @@ El esquema está en `supabase/migrations/` (aplicar en orden):
    `suscripciones_push`, todas con Row Level Security (cada usuario solo ve
    sus propios datos).
 2. `…_activar_semestre.sql`: función para cambiar el semestre activo.
+3. `…_modo_oscuro.sql`: preferencia de modo claro / oscuro en el perfil.
 
 ### Conectar el proyecto de Supabase
 
@@ -56,19 +57,26 @@ migraciones aplicadas e imprime la URL y la clave anon para `.env.local`.
 
 ## Temas de color
 
-El estudiante elige un tema al configurar su agenda. Los colores están en
-`src/lib/temas/temas.ts` y se asignan a roles (fondo, superficie, acento,
-alerta, primario, texto) que se usan en Tailwind como `bg-primario`,
-`text-sobre-acento`, etc. Las pruebas verifican el contraste de cada tema.
+El estudiante elige en su perfil (o con el botón de luna/sol de la barra):
 
-| Rol | Atardecer | Tierra |
-|---|---|---|
-| Fondo | `#F3F4F5` | `#F6F4F1` |
-| Superficie | `#D8E0E1` | `#ECE2CE` |
-| Acento | `#FF9408` | `#F2B635` |
-| Alerta | `#CA3F16` | `#E45C10` |
-| Primario | `#95122C` | `#4B5D16` |
-| Texto | `#100C08` | `#223300` |
+- **Modo**: claro, oscuro o según el dispositivo.
+- **Tema del modo claro**: Atardecer o Tierra.
+
+El modo oscuro siempre usa el tema Bosque. Los colores están en
+`src/lib/temas/temas.ts` y se asignan a roles (fondo, superficie, acento,
+alerta, primario, texto, barra) que se usan en Tailwind como `bg-primario`,
+`text-sobre-acento`, etc. El fondo de la página es un degradado con los
+colores de cada tema. Las pruebas verifican el contraste de cada tema.
+
+| Rol | Atardecer | Tierra | Bosque (oscuro) |
+|---|---|---|---|
+| Fondo | `#F3F4F5` | `#F6F4F1` | `#051F20` |
+| Superficie | `#D8E0E1` | `#ECE2CE` | `#163832` |
+| Acento | `#FF9408` | `#F2B635` | `#8EB69B` |
+| Alerta | `#CA3F16` | `#E45C10` | `#E07A5F` |
+| Primario | `#95122C` | `#4B5D16` | `#8EB69B` |
+| Barra | `#95122C` | `#4B5D16` | `#0B2B26` |
+| Texto | `#100C08` | `#223300` | `#DAF1DE` |
 
 ## Estructura
 

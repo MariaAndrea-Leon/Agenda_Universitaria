@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { BotonModo } from "./boton-modo";
 
 const ENLACES = [
   { href: "/horario", nombre: "Horario" },
@@ -23,18 +24,21 @@ export function Navegacion() {
             href={e.href}
             aria-current={activo ? "page" : undefined}
             className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
-              activo ? "bg-fondo text-texto" : "text-sobre-primario hover:bg-white/15"
+              activo ? "bg-fondo text-texto" : "text-sobre-barra hover:bg-white/15"
             }`}
           >
             {e.nombre}
           </Link>
         );
       })}
-      <form action="/auth/salir" method="post" className="ml-auto">
-        <button type="submit" className="rounded-lg px-3 py-1.5 text-sm text-sobre-primario hover:bg-white/15">
-          Salir
-        </button>
-      </form>
+      <div className="ml-auto flex items-center gap-1">
+        <BotonModo />
+        <form action="/auth/salir" method="post">
+          <button type="submit" className="rounded-lg px-3 py-1.5 text-sm text-sobre-barra hover:bg-white/15">
+            Salir
+          </button>
+        </form>
+      </div>
     </nav>
   );
 }

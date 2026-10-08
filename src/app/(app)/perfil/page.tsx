@@ -4,7 +4,7 @@ import { Mensajes, type ParamsMensajes } from "@/components/mensajes";
 import { SelectorTema } from "@/components/selector-tema";
 import type { Perfil } from "@/lib/modelos";
 import { requerirUsuario } from "@/lib/sesion";
-import { TEMA_POR_DEFECTO } from "@/lib/temas/temas";
+import { MODO_POR_DEFECTO, TEMA_POR_DEFECTO } from "@/lib/temas/temas";
 import { guardarPerfil } from "./acciones";
 
 export default async function PaginaPerfil({ searchParams }: { searchParams: ParamsMensajes }) {
@@ -23,7 +23,7 @@ export default async function PaginaPerfil({ searchParams }: { searchParams: Par
           <Campo etiqueta="Universidad" name="universidad" defaultValue={perfil?.universidad ?? ""} />
           <Campo etiqueta="Carrera" name="carrera" defaultValue={perfil?.carrera ?? ""} />
         </div>
-        <SelectorTema inicial={perfil?.tema ?? TEMA_POR_DEFECTO} />
+        <SelectorTema inicial={perfil?.tema ?? TEMA_POR_DEFECTO} modoInicial={perfil?.modo ?? MODO_POR_DEFECTO} />
         <Boton type="submit" className="self-start">
           Guardar
         </Boton>

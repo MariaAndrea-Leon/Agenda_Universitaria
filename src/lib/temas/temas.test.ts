@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { TEMAS, contraste } from "./temas";
+import { TODOS_LOS_TEMAS, contraste } from "./temas";
+import { cssDeTemas } from "./css";
 import { COLORES_MATERIA } from "@/lib/modelos";
 
 const TEXTO_NORMAL = 4.5;
@@ -11,12 +12,18 @@ describe("contraste", () => {
   });
 });
 
-describe.each(Object.values(TEMAS))("tema $nombre", (tema) => {
+describe.each(TODOS_LOS_TEMAS)("tema $nombre", (tema) => {
   const c = tema.colores;
 
   it("el texto se lee sobre el fondo y las tarjetas", () => {
     expect(contraste(c.texto, c.fondo)).toBeGreaterThanOrEqual(TEXTO_NORMAL);
+    expect(contraste(c.texto, c.fondo2)).toBeGreaterThanOrEqual(TEXTO_NORMAL);
     expect(contraste(c.texto, c.superficie)).toBeGreaterThanOrEqual(TEXTO_NORMAL);
+  });
+
+  it("el texto de la barra se lee sobre la barra y al inicio del degradado", () => {
+    expect(contraste(c.sobreBarra, c.barra)).toBeGreaterThanOrEqual(TEXTO_NORMAL);
+    expect(contraste(c.sobreBarra, tema.degradado[0])).toBeGreaterThanOrEqual(TEXTO_NORMAL);
   });
 
   it("el texto se lee sobre el acento y el primario", () => {
@@ -32,5 +39,15 @@ describe.each(Object.values(TEMAS))("tema $nombre", (tema) => {
 describe("colores de materia", () => {
   it.each(COLORES_MATERIA)("%s deja leer texto blanco", (color) => {
     expect(contraste("#FFFFFF", color)).toBeGreaterThanOrEqual(TEXTO_NORMAL);
+  });
+});
+
+describe("cssDeTemas", () => {
+  it("aplica el tema oscuro con data-modo y con la preferencia del dispositivo", () => {
+    const css = cssDeTemas();
+    expect(css).toContain(':root[data-modo="oscuro"] { --fondo: #051F20;');
+    expect(css).toMatch(/@media \(prefers-color-scheme: dark\) \{ :root\[data-modo="sistema"\]/);
+    // El modo oscuro va después de los temas claros para ganarles.
+    expect(css.indexOf('data-modo="oscuro"')).toBeGreaterThan(css.indexOf('data-tema="tierra"'));
   });
 });

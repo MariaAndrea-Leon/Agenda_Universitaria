@@ -6,9 +6,9 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-dvh">
-      <header className="bg-primario px-4 py-3">
+      <header className="bg-barra px-4 py-3">
         <div className="mx-auto flex max-w-5xl flex-col gap-2 sm:flex-row sm:items-center sm:gap-6">
-          <p className="font-bold text-sobre-primario">Agenda Universitaria</p>
+          <p className="font-bold text-sobre-barra">Agenda Universitaria</p>
           <div className="flex-1">
             <Navegacion />
           </div>
