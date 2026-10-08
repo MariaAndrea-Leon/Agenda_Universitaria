@@ -1,5 +1,6 @@
 import { Boton } from "@/components/boton";
 import { Campo } from "@/components/campo";
+import { InstalarApp } from "@/components/instalar-app";
 import { Mensajes, type ParamsMensajes } from "@/components/mensajes";
 import { SelectorTema } from "@/components/selector-tema";
 import type { Perfil } from "@/lib/modelos";
@@ -37,6 +38,7 @@ export default async function PaginaPerfil({ searchParams }: { searchParams: Par
           Guardar
         </Boton>
       </form>
+      <InstalarApp />
     </>
   );
 }
