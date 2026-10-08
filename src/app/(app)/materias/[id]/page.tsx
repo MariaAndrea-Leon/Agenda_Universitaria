@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Boton } from "@/components/boton";
 import { Campo } from "@/components/campo";
+import { FormEliminar } from "@/components/eliminar";
 import { CamposMateria } from "@/components/campos-materia";
 import { Mensajes } from "@/components/mensajes";
 import { Pizarron } from "@/components/pizarron";
@@ -139,7 +140,7 @@ export default async function PaginaMateria({
         ) : (
           <ul className="flex flex-col gap-2">
             {bloques.map((b) => (
-              <li key={b.id} className="flex items-center gap-3 rounded-xl bg-fondo px-3 py-2">
+              <li key={b.id} className="has-[[data-eliminando]]:hidden flex items-center gap-3 rounded-xl bg-fondo px-3 py-2">
                 <span className="flex-1">
                   <span className="font-medium">{DIAS[b.dia_semana - 1].nombre}</span>{" "}
                   {formatoHora(b.hora_inicio)} a {formatoHora(b.hora_fin)}
@@ -149,13 +150,14 @@ export default async function PaginaMateria({
                       .join(" · ")}
                   </span>
                 </span>
-                <form action={eliminarBloque}>
-                  <input type="hidden" name="id" value={b.id} />
-                  <input type="hidden" name="materia_id" value={materia.id} />
-                  <button type="submit" className="text-sm underline" aria-label={`Quitar ${DIAS[b.dia_semana - 1].nombre}`}>
-                    Quitar
-                  </button>
-                </form>
+                <FormEliminar
+                  action={eliminarBloque}
+                  campos={{ id: b.id, materia_id: materia.id }}
+                  pregunta={`¿Quitar el ${DIAS[b.dia_semana - 1].nombre.toLowerCase()} de ${formatoHora(b.hora_inicio)} a ${formatoHora(b.hora_fin)} del horario?`}
+                  etiqueta="Quitar"
+                  ariaLabel={`Quitar ${DIAS[b.dia_semana - 1].nombre}`}
+                  enlace
+                />
               </li>
             ))}
           </ul>
@@ -207,16 +209,16 @@ export default async function PaginaMateria({
         </Boton>
       </form>
 
-      <details className="rounded-2xl bg-superficie p-4">
-        <summary className="cursor-pointer text-sm font-medium">Eliminar materia</summary>
-        <form action={eliminarMateria} className="mt-3 flex flex-col gap-2">
-          <input type="hidden" name="id" value={materia.id} />
-          <p className="text-sm">Se borra la materia con su horario. No se puede deshacer.</p>
-          <Boton variante="peligro" className="self-start">
-            Sí, eliminar {materia.nombre}
-          </Boton>
-        </form>
-      </details>
+      <section className="flex flex-col gap-2 rounded-2xl bg-superficie p-4">
+        <p className="text-sm">Eliminar la materia borra también su horario, tareas, exámenes, notas y apuntes.</p>
+        <FormEliminar
+          action={eliminarMateria}
+          campos={{ id: materia.id }}
+          pregunta={`¿Seguro que quieres eliminar ${materia.nombre}? Se borran su horario, tareas, exámenes, notas y apuntes. No se puede deshacer.`}
+          etiqueta={`Eliminar ${materia.nombre}`}
+          className="self-start"
+        />
+      </section>
     </>
   );
 }

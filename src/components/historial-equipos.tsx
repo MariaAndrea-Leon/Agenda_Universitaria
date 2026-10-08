@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { claveDelEquipo } from "@/lib/instalacion";
+import { FormEliminar } from "./eliminar";
 import { quitarEquipo } from "@/app/(app)/perfil/acciones";
 
 export interface Equipo {
@@ -23,7 +24,7 @@ export function HistorialEquipos({ equipos }: { equipos: Equipo[] }) {
   return (
     <ul className="flex flex-col gap-2">
       {equipos.map((e) => (
-        <li key={e.id} className="flex items-center gap-3 rounded-xl bg-fondo px-3 py-2">
+        <li key={e.id} className="has-[[data-eliminando]]:hidden flex items-center gap-3 rounded-xl bg-fondo px-3 py-2">
           <span className="min-w-0 flex-1">
             <span className="font-medium">{e.nombre}</span>
             {e.clave === actual && <span className="ml-2 rounded-full bg-primario px-2 py-0.5 text-xs text-sobre-primario">Este equipo</span>}
@@ -31,12 +32,14 @@ export function HistorialEquipos({ equipos }: { equipos: Equipo[] }) {
               Instalada el {e.instalada} · último uso {e.uso}
             </span>
           </span>
-          <form action={quitarEquipo}>
-            <input type="hidden" name="id" value={e.id} />
-            <button type="submit" className="text-sm underline" aria-label={`Quitar ${e.nombre} del historial`}>
-              Quitar
-            </button>
-          </form>
+          <FormEliminar
+            action={quitarEquipo}
+            campos={{ id: e.id }}
+            pregunta={`¿Quitar ${e.nombre} del historial? La app no se desinstala de ese equipo.`}
+            etiqueta="Quitar"
+            ariaLabel={`Quitar ${e.nombre} del historial`}
+            enlace
+          />
         </li>
       ))}
     </ul>

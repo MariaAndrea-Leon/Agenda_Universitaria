@@ -1,5 +1,5 @@
-import { notFound } from "next/navigation";
-import { Boton } from "@/components/boton";
+import { volverCon } from "@/lib/acciones";
+import { FormEliminar } from "@/components/eliminar";
 import { EditorPizarron } from "@/components/editor-pizarron";
 import { Mensajes } from "@/components/mensajes";
 import type { Apunte } from "@/lib/modelos";
@@ -23,7 +23,8 @@ export default async function PaginaApunte({
     .eq("id", apunteId)
     .eq("materia_id", id)
     .maybeSingle();
-  if (!data) notFound();
+  // Si se borró (o el enlace es viejo), vuelve a la materia en vez de un error 404.
+  if (!data) volverCon(`/materias/${id}`, "error", "Ese apunte ya no existe.");
   const apunte = data as Apunte & { materias: { nombre: string; color: string } };
 
   return (
@@ -31,17 +32,13 @@ export default async function PaginaApunte({
       <h1 className="sr-only">Apunte de {apunte.materias.nombre}</h1>
       <Mensajes error={error} />
       <EditorPizarron apunte={apunte} dibujo={leerDibujo(apunte.dibujo)} materia={apunte.materias}>
-        <details className="rounded-2xl bg-superficie p-4">
-          <summary className="cursor-pointer text-sm font-medium">Borrar este apunte</summary>
-          <form action={eliminarApunte} className="mt-3 flex flex-col gap-2">
-            <input type="hidden" name="id" value={apunte.id} />
-            <input type="hidden" name="materia_id" value={id} />
-            <p className="text-sm">Se borra el apunte completo. No se puede deshacer.</p>
-            <Boton variante="peligro" className="self-start">
-              Sí, borrar el apunte
-            </Boton>
-          </form>
-        </details>
+        <FormEliminar
+          action={eliminarApunte}
+          campos={{ id: apunte.id, materia_id: id }}
+          pregunta="¿Seguro que quieres borrar este apunte completo? No se puede deshacer."
+          etiqueta="Borrar este apunte"
+          className="self-start"
+        />
       </EditorPizarron>
     </>
   );

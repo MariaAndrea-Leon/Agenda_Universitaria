@@ -1,6 +1,7 @@
 import { alternarTarea, crearTarea, eliminarTarea } from "@/app/(app)/tareas/acciones";
 import { Boton } from "@/components/boton";
 import { Campo } from "@/components/campo";
+import { FormEliminar } from "@/components/eliminar";
 import type { EvaluacionConMateria, TareaConMateria } from "@/lib/consultas";
 import { PRIORIDADES, TIPOS_EVALUACION, type MateriaCorta } from "@/lib/modelos";
 import { formatoNota } from "@/lib/notas";
@@ -28,7 +29,7 @@ export function ItemTarea({
   const vencida = !hecha && cuando === "Vencida";
 
   return (
-    <li className="flex items-start gap-3 rounded-xl bg-fondo px-3 py-2">
+    <li className="has-[[data-eliminando]]:hidden flex items-start gap-3 rounded-xl bg-fondo px-3 py-2">
       <form action={alternarTarea}>
         <input type="hidden" name="id" value={tarea.id} />
         <input type="hidden" name="hecha" value={hecha ? "1" : "0"} />
@@ -66,13 +67,13 @@ export function ItemTarea({
           </span>
         )}
         {tarea.prioridad === "alta" && !hecha && <span className="text-xs font-bold">Prioridad alta</span>}
-        <form action={eliminarTarea}>
-          <input type="hidden" name="id" value={tarea.id} />
-          <input type="hidden" name="volver" value={volver} />
-          <button type="submit" className="text-xs underline opacity-70" aria-label={`Eliminar "${tarea.titulo}"`}>
-            Eliminar
-          </button>
-        </form>
+        <FormEliminar
+          action={eliminarTarea}
+          campos={{ id: tarea.id, volver }}
+          pregunta={`¿Seguro que quieres eliminar la tarea "${tarea.titulo}"?`}
+          ariaLabel={`Eliminar "${tarea.titulo}"`}
+          enlace
+        />
       </div>
     </li>
   );
@@ -95,7 +96,7 @@ export function ItemEvaluacion({
   const pasada = cuando === "Vencida";
 
   return (
-    <li className="flex items-start gap-3 rounded-xl bg-fondo px-3 py-2">
+    <li className="has-[[data-eliminando]]:hidden flex items-start gap-3 rounded-xl bg-fondo px-3 py-2">
       <Punto color={e.materia.color} />
       <div className="min-w-0 flex-1">
         <p className="font-medium">
@@ -125,12 +126,13 @@ export function ItemEvaluacion({
         )}
         {pasada && <span className="text-xs opacity-70">Ya pasó</span>}
         {accionEliminar && (
-          <form action={accionEliminar}>
-            <input type="hidden" name="id" value={e.id} />
-            <button type="submit" className="text-xs underline opacity-70" aria-label={`Eliminar "${e.nombre}"`}>
-              Eliminar
-            </button>
-          </form>
+          <FormEliminar
+            action={accionEliminar}
+            campos={{ id: e.id }}
+            pregunta={`¿Seguro que quieres eliminar "${e.nombre}"? También se borra su nota.`}
+            ariaLabel={`Eliminar "${e.nombre}"`}
+            enlace
+          />
         )}
       </div>
     </li>
