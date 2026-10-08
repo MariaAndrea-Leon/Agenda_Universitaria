@@ -26,3 +26,10 @@ export function datosDe(formulario: FormData): Record<string, string | undefined
     [...formulario.entries()].map(([k, v]) => [k, typeof v === "string" && v.trim() !== "" ? v.trim() : undefined]),
   );
 }
+
+// Agrega el motivo que dio la base de datos a un mensaje de error, para que
+// el estudiante pueda reportarlo (por ejemplo, un permiso o columna faltante).
+export function conDetalle(mensaje: string, error: { message?: string } | null): string {
+  const motivo = error?.message?.trim();
+  return motivo ? `${mensaje} Motivo: ${motivo.slice(0, 160)}` : mensaje;
+}

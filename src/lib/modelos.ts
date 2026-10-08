@@ -106,3 +106,14 @@ export const TIPOS_EVALUACION: { valor: Evaluacion["tipo"]; nombre: string }[] =
 ];
 
 export type MateriaCorta = Pick<Materia, "id" | "nombre" | "color">;
+
+export interface Apunte {
+  id: string;
+  materia_id: string;
+  fecha: string; // "YYYY-MM-DD"
+  titulo: string | null;
+  fondo: string;
+  dibujo: unknown; // se valida con leerDibujo
+  creado_en: string;
+  editado_en: string;
+}

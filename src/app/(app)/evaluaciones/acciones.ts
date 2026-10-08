@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { datosDe, primerError, volverCon } from "@/lib/acciones";
+import { datosDe, primerError, conDetalle, volverCon } from "@/lib/acciones";
 import { sumaPorcentajes } from "@/lib/pendientes";
 import { requerirUsuario, zonaDelUsuario } from "@/lib/sesion";
 import { localAInstante } from "@/lib/zona";
@@ -56,7 +56,7 @@ export async function crearEvaluacion(formulario: FormData) {
     salon: entrada.data.salon ?? null,
     temas: entrada.data.temas ?? null,
   });
-  if (error) volverCon(RUTA, "error", "No se pudo guardar la evaluación.", conservar);
+  if (error) volverCon(RUTA, "error", conDetalle("No se pudo guardar la evaluación.", error), conservar);
 
   revalidatePath("/", "layout");
   volverCon(RUTA, "ok", "Evaluación agregada.");
