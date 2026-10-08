@@ -9,6 +9,7 @@ const ENLACES = [
   { href: "/calendario", nombre: "Calendario" },
   { href: "/tareas", nombre: "Tareas" },
   { href: "/evaluaciones", nombre: "Exámenes" },
+  { href: "/notas", nombre: "Notas" },
   { href: "/horario", nombre: "Horario" },
   { href: "/materias", nombre: "Materias" },
   { href: "/semestres", nombre: "Semestres" },

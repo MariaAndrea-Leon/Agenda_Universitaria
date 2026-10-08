@@ -89,6 +89,7 @@ export interface Evaluacion {
   salon: string | null;
   temas: string | null;
   nota: number | null;
+  creado_en: string;
 }
 
 export const TIPOS_EVALUACION: { valor: Evaluacion["tipo"]; nombre: string }[] = [
