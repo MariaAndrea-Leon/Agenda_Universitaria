@@ -109,6 +109,7 @@ export type MateriaCorta = Pick<Materia, "id" | "nombre" | "color">;
 
 export interface Apunte {
   id: string;
+  usuario_id: string;
   materia_id: string;
   fecha: string; // "YYYY-MM-DD"
   titulo: string | null;

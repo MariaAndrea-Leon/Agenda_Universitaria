@@ -15,6 +15,7 @@ const ENLACES = [
   { href: "/notas", nombre: "Notas", icono: "notas" as Icono },
   { href: "/horario", nombre: "Horario" },
   { href: "/materias", nombre: "Materias" },
+  { href: "/compartidos", nombre: "Compartidos" },
   { href: "/semestres", nombre: "Semestres" },
   { href: "/perfil", nombre: "Perfil" },
 ];
