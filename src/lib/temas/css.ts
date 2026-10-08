@@ -33,7 +33,7 @@ export function cssDeTemas(): string {
     .join("\n");
 }
 
-export const CLAVE_TEMA = "agenda-tema";
-
-// Se ejecuta antes de pintar para aplicar el tema guardado sin parpadeo.
-export const SCRIPT_TEMA_INICIAL = `try{var t=localStorage.getItem("${CLAVE_TEMA}");if(t)document.documentElement.dataset.tema=t}catch(e){}`;
+// Cookie con el tema elegido. Se escribe al iniciar sesión y al cambiarlo en
+// el perfil, y el layout la lee para pintar el tema correcto desde el
+// servidor, sin parpadeo.
+export const COOKIE_TEMA = "agenda-tema";
