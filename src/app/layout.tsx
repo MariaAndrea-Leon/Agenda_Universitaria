@@ -25,6 +25,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#95122C",
+  viewportFit: "cover", // para respetar la zona del gesto de inicio en iPhone
 };
 
 export default async function RootLayout({

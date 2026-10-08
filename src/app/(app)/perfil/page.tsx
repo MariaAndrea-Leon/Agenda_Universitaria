@@ -1,6 +1,8 @@
 import { Boton } from "@/components/boton";
 import { Campo } from "@/components/campo";
+import { headers } from "next/headers";
 import { ActivarNotificaciones } from "@/components/activar-notificaciones";
+import { EnlaceCalendario } from "@/components/enlace-calendario";
 import { InstalarApp } from "@/components/instalar-app";
 import { correoConfigurado } from "@/lib/envios";
 import { ANTICIPACIONES } from "@/lib/recordatorios";
@@ -10,13 +12,15 @@ import type { Perfil } from "@/lib/modelos";
 import { formatoNota } from "@/lib/notas";
 import { requerirUsuario } from "@/lib/sesion";
 import { MODO_POR_DEFECTO, TEMA_POR_DEFECTO } from "@/lib/temas/temas";
-import { guardarPerfil } from "./acciones";
+import { cambiarEnlaceCalendario, guardarPerfil } from "./acciones";
 import { guardarAvisos } from "./avisos";
 
 export default async function PaginaPerfil({ searchParams }: { searchParams: ParamsMensajes }) {
   const { supabase, usuario } = await requerirUsuario();
   const { data } = await supabase.from("perfiles").select("*").eq("id", usuario.id).maybeSingle();
   const perfil = data as Perfil | null;
+  const h = await headers();
+  const sitio = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`;
 
   return (
     <>
@@ -43,6 +47,29 @@ export default async function PaginaPerfil({ searchParams }: { searchParams: Par
         </Boton>
       </form>
       <InstalarApp />
+      <section className="flex flex-col gap-3 rounded-2xl bg-superficie p-4 sm:p-6">
+        <h2 className="text-lg font-semibold">Ver la agenda en Google Calendar</h2>
+        <p className="text-sm opacity-80">
+          Tus clases, entregas pendientes y exámenes del semestre activo aparecen en Google Calendar (o el calendario
+          del celular) y se actualizan solos. Google puede tardar unas horas en mostrar los cambios.
+        </p>
+        {perfil?.token_calendario ? (
+          <>
+            <EnlaceCalendario url={`${sitio}/api/calendario/${perfil.token_calendario}.ics`} />
+            <details className="text-sm">
+              <summary className="cursor-pointer">¿Compartiste el enlace sin querer?</summary>
+              <form action={cambiarEnlaceCalendario} className="mt-2 flex flex-col gap-2">
+                <p>Puedes cambiarlo. El enlace anterior deja de funcionar y tendrás que agregar el nuevo.</p>
+                <Boton variante="peligro" className="self-start">
+                  Cambiar enlace
+                </Boton>
+              </form>
+            </details>
+          </>
+        ) : (
+          <p className="text-sm">El enlace aparecerá cuando se actualice la base de datos.</p>
+        )}
+      </section>
       <form action={guardarAvisos} className="flex flex-col gap-3 rounded-2xl bg-superficie p-4 sm:p-6">
         <h2 className="text-lg font-semibold">Recordatorios</h2>
         <p className="text-sm opacity-80">Avisos antes de cada entrega pendiente y de cada examen con fecha.</p>

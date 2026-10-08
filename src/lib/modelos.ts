@@ -14,6 +14,7 @@ export interface Perfil {
   avisos_push: boolean;
   avisos_correo: boolean;
   avisos_antes: number[];
+  token_calendario?: string; // falta si no se ha corrido la migración del calendario
 }
 
 export interface Semestre {

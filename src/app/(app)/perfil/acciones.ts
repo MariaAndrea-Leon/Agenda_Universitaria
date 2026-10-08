@@ -43,3 +43,15 @@ export async function guardarPerfil(formulario: FormData) {
   revalidatePath("/", "layout");
   volverCon("/perfil", "ok", "Perfil guardado.");
 }
+
+// Cambia el enlace privado del calendario; el anterior deja de funcionar.
+export async function cambiarEnlaceCalendario() {
+  const { supabase, usuario } = await requerirUsuario();
+  const { error } = await supabase
+    .from("perfiles")
+    .update({ token_calendario: crypto.randomUUID() })
+    .eq("id", usuario.id);
+  if (error) volverCon("/perfil", "error", "No se pudo cambiar el enlace.");
+  revalidatePath("/perfil");
+  volverCon("/perfil", "ok", "Enlace del calendario cambiado. El anterior ya no funciona.");
+}
