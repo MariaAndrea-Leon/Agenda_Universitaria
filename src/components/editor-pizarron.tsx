@@ -136,7 +136,7 @@ function pintarTexto(ctx: CanvasRenderingContext2D, t: Texto, k: number) {
   ctx.restore();
 }
 
-function pintarTodo(ctx: CanvasRenderingContext2D, d: Dibujo, fondo: Fondo, k: number, ocultar?: string) {
+export function pintarTodo(ctx: CanvasRenderingContext2D, d: Dibujo, fondo: Fondo, k: number, ocultar?: string) {
   pintarFondo(ctx, fondo, d.alto, k);
   for (const t of d.trazos) pintarTrazo(ctx, t, k);
   for (const t of d.textos) if (t.id !== ocultar) pintarTexto(ctx, t, k);

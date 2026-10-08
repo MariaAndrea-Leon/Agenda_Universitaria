@@ -1,5 +1,6 @@
 import { Boton } from "@/components/boton";
 import { Campo } from "@/components/campo";
+import { FormEliminar } from "@/components/eliminar";
 import { Mensajes, type ParamsMensajes } from "@/components/mensajes";
 import { fechaCorta } from "@/lib/fechas";
 import type { Semestre } from "@/lib/modelos";
@@ -23,7 +24,7 @@ export default async function PaginaSemestres({ searchParams }: { searchParams: 
       ) : (
         <ul className="flex flex-col gap-3">
           {semestres.map((s) => (
-            <li key={s.id} className="flex flex-wrap items-center gap-3 rounded-2xl bg-superficie p-4">
+            <li key={s.id} className="has-[[data-eliminando]]:hidden flex flex-wrap items-center gap-3 rounded-2xl bg-superficie p-4">
               <div className="flex-1">
                 <p className="font-semibold">
                   {s.nombre}
@@ -43,14 +44,13 @@ export default async function PaginaSemestres({ searchParams }: { searchParams: 
                   <Boton variante="secundario">Marcar activo</Boton>
                 </form>
               )}
-              <details className="relative">
-                <summary className="cursor-pointer list-none rounded-xl px-3 py-2 text-sm underline">Eliminar</summary>
-                <form action={eliminarSemestre} className="absolute right-0 z-10 mt-2 w-64 rounded-xl bg-fondo p-3 shadow-lg">
-                  <input type="hidden" name="id" value={s.id} />
-                  <p className="mb-2 text-sm">Se borran también sus materias y horario. ¿Seguro?</p>
-                  <Boton variante="peligro">Sí, eliminar</Boton>
-                </form>
-              </details>
+              <FormEliminar
+                action={eliminarSemestre}
+                campos={{ id: s.id }}
+                pregunta={`¿Seguro que quieres eliminar el semestre ${s.nombre}? Se borran también sus materias, horario, tareas, notas y apuntes.`}
+                ariaLabel={`Eliminar el semestre ${s.nombre}`}
+                enlace
+              />
             </li>
           ))}
         </ul>
