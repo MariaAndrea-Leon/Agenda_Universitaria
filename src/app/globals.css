@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+/* Los valores de cada tema se inyectan desde src/lib/temas (ver layout.tsx). */
+@theme inline {
+  --color-fondo: var(--fondo);
+  --color-superficie: var(--superficie);
+  --color-acento: var(--acento);
+  --color-sobre-acento: var(--sobre-acento);
+  --color-alerta: var(--alerta);
+  --color-sobre-alerta: var(--sobre-alerta);
+  --color-primario: var(--primario);
+  --color-sobre-primario: var(--sobre-primario);
+  --color-texto: var(--texto);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--fondo);
+  color: var(--texto);
+}
+
+.degradado-tema {
+  background-image: linear-gradient(135deg, var(--degradado-desde), var(--degradado-hasta));
+}
