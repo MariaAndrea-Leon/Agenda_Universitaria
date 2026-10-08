@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { enModoApp, marcarInstalada, registrarEquipo } from "@/lib/instalacion";
 
 // Evento que Chrome y Android lanzan cuando la app se puede instalar.
 export interface EventoInstalar extends Event {
@@ -24,13 +25,22 @@ export function RegistrarSW() {
     if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
+    // Abierta como app: este equipo la tiene instalada.
+    if (enModoApp()) {
+      marcarInstalada(true);
+      registrarEquipo().catch(() => {});
+    }
     const alPoderInstalar = (e: Event) => {
       e.preventDefault();
+      // El navegador solo ofrece instalar cuando no está instalada.
+      marcarInstalada(false);
       window.__eventoInstalar = e as EventoInstalar;
       window.dispatchEvent(new Event(EVENTO_INSTALABLE));
     };
     const alInstalar = () => {
       window.__eventoInstalar = null;
+      marcarInstalada(true);
+      registrarEquipo(true).catch(() => {});
       window.dispatchEvent(new Event(EVENTO_INSTALABLE));
     };
     window.addEventListener("beforeinstallprompt", alPoderInstalar);

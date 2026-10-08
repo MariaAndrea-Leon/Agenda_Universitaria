@@ -55,3 +55,13 @@ export async function cambiarEnlaceCalendario() {
   revalidatePath("/perfil");
   volverCon("/perfil", "ok", "Enlace del calendario cambiado. El anterior ya no funciona.");
 }
+
+// Quita un equipo del historial (no desinstala la app de ese equipo).
+export async function quitarEquipo(formulario: FormData) {
+  const id = z.string().uuid().parse(formulario.get("id"));
+  const { supabase } = await requerirUsuario();
+  const { error } = await supabase.from("dispositivos").delete().eq("id", id);
+  if (error) volverCon("/perfil", "error", conDetalle("No se pudo quitar el equipo.", error));
+  revalidatePath("/perfil");
+  volverCon("/perfil", "ok", "Equipo quitado del historial.");
+}

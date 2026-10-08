@@ -3,6 +3,7 @@ import { Campo } from "@/components/campo";
 import { headers } from "next/headers";
 import { ActivarNotificaciones } from "@/components/activar-notificaciones";
 import { EnlaceCalendario } from "@/components/enlace-calendario";
+import { HistorialEquipos } from "@/components/historial-equipos";
 import { InstalarApp } from "@/components/instalar-app";
 import { correoConfigurado } from "@/lib/envios";
 import { ANTICIPACIONES } from "@/lib/recordatorios";
@@ -10,14 +11,26 @@ import { Mensajes, type ParamsMensajes } from "@/components/mensajes";
 import { SelectorTema } from "@/components/selector-tema";
 import type { Perfil } from "@/lib/modelos";
 import { formatoNota } from "@/lib/notas";
-import { requerirUsuario } from "@/lib/sesion";
+import { requerirUsuario, zonaDelUsuario } from "@/lib/sesion";
+import { fechaHora } from "@/lib/zona";
 import { MODO_POR_DEFECTO, TEMA_POR_DEFECTO } from "@/lib/temas/temas";
 import { cambiarEnlaceCalendario, guardarPerfil } from "./acciones";
 import { guardarAvisos } from "./avisos";
 
 export default async function PaginaPerfil({ searchParams }: { searchParams: ParamsMensajes }) {
   const { supabase, usuario } = await requerirUsuario();
-  const { data } = await supabase.from("perfiles").select("*").eq("id", usuario.id).maybeSingle();
+  const [{ data }, { data: dispositivos }, zona] = await Promise.all([
+    supabase.from("perfiles").select("*").eq("id", usuario.id).maybeSingle(),
+    supabase.from("dispositivos").select("*").order("ultimo_uso", { ascending: false }),
+    zonaDelUsuario(supabase, usuario.id),
+  ]);
+  const equipos = (dispositivos ?? []).map((d) => ({
+    id: d.id as string,
+    clave: d.clave as string,
+    nombre: d.nombre as string,
+    instalada: fechaHora(d.instalada_en, zona),
+    uso: fechaHora(d.ultimo_uso, zona),
+  }));
   const perfil = data as Perfil | null;
   const h = await headers();
   const sitio = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`;
@@ -47,6 +60,10 @@ export default async function PaginaPerfil({ searchParams }: { searchParams: Par
         </Boton>
       </form>
       <InstalarApp />
+      <section className="flex flex-col gap-3 rounded-2xl bg-superficie p-4 sm:p-6">
+        <h2 className="text-lg font-semibold">Equipos con la app</h2>
+        <HistorialEquipos equipos={equipos} />
+      </section>
       <section className="flex flex-col gap-3 rounded-2xl bg-superficie p-4 sm:p-6">
         <h2 className="text-lg font-semibold">Ver la agenda en Google Calendar</h2>
         <p className="text-sm opacity-80">

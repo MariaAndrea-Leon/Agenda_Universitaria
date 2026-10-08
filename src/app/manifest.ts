@@ -1,8 +1,19 @@
 import type { MetadataRoute } from "next";
+import { headers } from "next/headers";
 
 // Manifiesto de la app instalable (PWA).
-export default function manifest(): MetadataRoute.Manifest {
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost";
+  const protocolo = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  const extra = {
+    // Abre la app instalada en la ventana que ya esté abierta.
+    launch_handler: { client_mode: ["focus-existing", "auto"] },
+    // Permite que el botón "Abrir la app" la abra en Chrome y Edge de computador.
+    protocol_handlers: [{ protocol: "web+agenda", url: "/abrir?destino=%s" }],
+  };
   return {
+    id: "/hoy",
     name: "Agenda Universitaria",
     short_name: "Agenda",
     description: "Clases, tareas, exámenes y notas de la universidad en un solo lugar.",
@@ -10,7 +21,7 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/hoy",
     scope: "/",
     display: "standalone",
-    orientation: "portrait",
+    orientation: "any",
     background_color: "#F3F4F5",
     theme_color: "#95122C",
     icons: [
@@ -23,5 +34,8 @@ export default function manifest(): MetadataRoute.Manifest {
       { name: "Tareas", url: "/tareas" },
       { name: "Notas", url: "/notas" },
     ],
-  };
+    // Para que el navegador diga si ya está instalada en este equipo.
+    related_applications: [{ platform: "webapp", url: `${protocolo}://${host}/manifest.webmanifest` }],
+    ...extra,
+  } as MetadataRoute.Manifest;
 }
