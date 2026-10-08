@@ -1,6 +1,6 @@
 // Filas de la base de datos tal como las devuelve Supabase.
 
-import type { TemaId } from "@/lib/temas/temas";
+import type { Modo, TemaId } from "@/lib/temas/temas";
 
 export interface Perfil {
   id: string;
@@ -9,6 +9,7 @@ export interface Perfil {
   carrera: string | null;
   zona_horaria: string;
   tema: TemaId;
+  modo: Modo;
   nota_aprobatoria: number;
 }
 

@@ -11,7 +11,7 @@ export default async function Inicio() {
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-3xl flex-col justify-center gap-6 p-4 sm:p-8">
-      <header className="degradado-tema rounded-2xl p-8 text-sobre-primario">
+      <header className="degradado-tema rounded-2xl p-8 text-sobre-barra">
         <h1 className="text-3xl font-bold sm:text-4xl">Agenda Universitaria</h1>
         <p className="mt-2 text-lg opacity-90">
           Tu horario, tareas, exámenes y notas de la universidad en un solo lugar.

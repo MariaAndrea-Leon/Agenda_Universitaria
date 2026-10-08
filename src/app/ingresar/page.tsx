@@ -9,7 +9,7 @@ export default async function Ingresar({
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 p-4">
-      <header className="degradado-tema rounded-2xl p-6 text-sobre-primario">
+      <header className="degradado-tema rounded-2xl p-6 text-sobre-barra">
         <h1 className="text-2xl font-bold">Agenda Universitaria</h1>
         <p className="mt-1 opacity-90">Tus clases, tareas y notas en un solo lugar.</p>
       </header>
