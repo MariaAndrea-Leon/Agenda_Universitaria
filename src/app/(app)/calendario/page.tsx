@@ -140,7 +140,7 @@ export default async function PaginaCalendario({
               </>
             );
             const clases = `flex min-h-14 flex-col items-start gap-1 rounded-lg p-1 sm:min-h-24 ${
-              delMes ? "bg-fondo" : "bg-fondo/40 opacity-50"
+              delMes ? "bg-fondo" : "border border-dashed border-texto/20"
             }`;
             const etiqueta = `${diaLargo(dia)}${lista.length ? `, ${lista.length} pendientes` : ""}`;
             return lista.length > 0 && delMes ? (
@@ -148,8 +148,11 @@ export default async function PaginaCalendario({
                 {contenido}
               </a>
             ) : (
-              <div key={dia} className={clases} aria-label={etiqueta}>
-                {contenido}
+              <div key={dia} className={clases}>
+                <span className="sr-only">{etiqueta}</span>
+                <span aria-hidden className="contents">
+                  {contenido}
+                </span>
               </div>
             );
           })}

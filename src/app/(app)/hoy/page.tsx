@@ -12,7 +12,9 @@ import {
 import { aMinutos, formatoHora } from "@/lib/horario/horario";
 import { TIPOS_BLOQUE } from "@/lib/modelos";
 import { agruparTareas } from "@/lib/pendientes";
-import { requerirUsuario, semestreActivo, zonaDelUsuario } from "@/lib/sesion";
+import { frasePara, tonoDe } from "@/components/notas";
+import { resumenMateria } from "@/lib/notas";
+import { notaAprobatoria, requerirUsuario, semestreActivo, zonaDelUsuario } from "@/lib/sesion";
 import { diaEnZona, diaLargo, diasEntre, diaSemana, partesEnZona } from "@/lib/zona";
 
 export default async function PaginaHoy({
@@ -25,14 +27,20 @@ export default async function PaginaHoy({
   const semestre = await semestreActivo(supabase);
   if (!semestre) return <SinSemestre titulo="Hoy" />;
 
-  const [materias, tareas, evaluaciones, bloques, zona] = await Promise.all([
+  const [materias, tareas, evaluaciones, bloques, zona, meta] = await Promise.all([
     materiasDelSemestre(supabase, semestre.id),
     tareasDelSemestre(supabase, semestre.id),
     evaluacionesDelSemestre(supabase, semestre.id),
     bloquesDelSemestre(supabase, semestre.id),
     zonaDelUsuario(supabase, usuario.id),
+    notaAprobatoria(supabase, usuario.id),
   ]);
   if (materias.length === 0) return <SinMaterias titulo="Hoy" />;
+
+  // Materias que necesitan más de 4,0 en lo que falta o que ya no alcanzan.
+  const enRiesgo = materias
+    .map((m) => ({ ...m, resumen: resumenMateria(evaluaciones.filter((e) => e.materia.id === m.id), meta) }))
+    .filter((m) => tonoDe(m.resumen) === "alerta");
 
   const ahora = new Date();
   const hoy = diaEnZona(ahora, zona);
@@ -72,6 +80,24 @@ export default async function PaginaHoy({
       </header>
       <Mensajes error={error} ok={ok} />
 
+      {enRiesgo.length > 0 && (
+        <section aria-labelledby="titulo-riesgo" className="flex flex-col gap-2 rounded-2xl bg-alerta p-4 text-sobre-alerta sm:p-6">
+          <h2 id="titulo-riesgo" className="font-semibold">
+            {enRiesgo.length === 1 ? "Una materia necesita atención" : `${enRiesgo.length} materias necesitan atención`}
+          </h2>
+          <ul className="flex flex-col gap-1 text-sm">
+            {enRiesgo.map((m) => (
+              <li key={m.id}>
+                <Link href={`/materias/${m.id}#notas`} className="font-semibold underline">
+                  {m.nombre}
+                </Link>
+                : {frasePara(m.resumen, meta)}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <div className="grid gap-5 lg:grid-cols-2">
         <section className="flex flex-col gap-2 rounded-2xl bg-superficie p-4 sm:p-6">
           <h2 className="font-semibold">Clases de hoy</h2>
@@ -86,7 +112,7 @@ export default async function PaginaHoy({
                 return (
                   <li
                     key={b.id}
-                    className={`flex items-start gap-3 rounded-xl bg-fondo px-3 py-2 ${termino ? "opacity-60" : ""}`}
+                    className={`flex items-start gap-3 rounded-xl px-3 py-2 ${termino ? "border border-texto/15" : "bg-fondo"}`}
                   >
                     <Punto color={b.materia.color} />
                     <div className="min-w-0 flex-1">
@@ -97,6 +123,7 @@ export default async function PaginaHoy({
                           .join(" · ")}
                       </p>
                     </div>
+                    {termino && <span className="text-xs">Terminó</span>}
                     {enCurso && (
                       <span className="rounded-full bg-acento px-2 py-0.5 text-xs font-bold text-sobre-acento">Ahora</span>
                     )}
