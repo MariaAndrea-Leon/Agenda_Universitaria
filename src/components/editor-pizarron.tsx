@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { crearClienteNavegador } from "@/lib/supabase/cliente";
@@ -22,6 +23,7 @@ import {
   grosorCon,
   GROSORES,
   INTERLINEA,
+  leerDibujo,
   LETRA,
   type Texto,
   tocaTrazo,
@@ -43,7 +45,7 @@ const ESTADOS: Record<Estado, string> = {
   guardado: "Guardado",
   pendiente: "Cambios sin guardar",
   guardando: "Guardando…",
-  error: "Sin conexión; reintentando",
+  error: "Sin guardar; reintentando",
 };
 
 const RADIO_BORRADOR = 14;
@@ -167,6 +169,7 @@ export interface ApunteEditable {
   titulo: string | null;
   fecha: string;
   fondo: string;
+  editado_en: string;
 }
 
 export function EditorPizarron({
@@ -190,6 +193,7 @@ export function EditorPizarron({
   const [titulo, setTitulo] = useState(apunte.titulo ?? "");
   const [fecha, setFecha] = useState(apunte.fecha);
   const [estado, setEstado] = useState<Estado>("guardado");
+  const [motivo, setMotivo] = useState("");
   const [edicion, setEdicion] = useState<EdicionTexto | null>(null);
   const [escala, setEscala] = useState(0);
   const [historial, setHistorial] = useState({ atras: 0, adelante: 0 });
@@ -254,32 +258,82 @@ export function EditorPizarron({
     document.fonts?.ready.then(() => pintarBase());
   }, [pintarBase]);
 
-  // Guardado automático un momento después de cada cambio.
+  // Guardado automático un momento después de cada cambio. Mientras no se
+  // guarde, queda una copia en este equipo para no perder nada si se cierra
+  // la app o se va la conexión.
+  const copiaLocal = `agenda:apunte:${apunte.id}`;
   const datosParaGuardar = useRef({ titulo, fecha, fondoId });
   datosParaGuardar.current = { titulo, fecha, fondoId };
-  const guardar = useCallback(async () => {
-    setEstado("guardando");
-    const { titulo, fecha, fondoId } = datosParaGuardar.current;
-    const { error } = await crearClienteNavegador()
-      .from("apuntes")
-      .update({
-        titulo: titulo.trim() || null,
-        fecha,
-        fondo: fondoId,
-        dibujo: doc.current,
-        editado_en: new Date().toISOString(),
-      })
-      .eq("id", apunte.id);
-    setEstado(error ? "error" : "guardado");
-    return !error;
-  }, [apunte.id]);
+  const cambios = useRef(0);
+  const guardados = useRef(0);
+  const enCurso = useRef<Promise<boolean>>(Promise.resolve(true));
+
+  const guardar = useCallback(() => {
+    // Uno a la vez, para que un guardado viejo no pise uno nuevo.
+    enCurso.current = enCurso.current.then(async () => {
+      const hasta = cambios.current;
+      if (hasta === guardados.current) return true;
+      setEstado("guardando");
+      const { titulo, fecha, fondoId } = datosParaGuardar.current;
+      const { data, error } = await crearClienteNavegador()
+        .from("apuntes")
+        .update({
+          titulo: titulo.trim() || null,
+          fecha,
+          fondo: fondoId,
+          dibujo: doc.current,
+          editado_en: new Date().toISOString(),
+        })
+        .eq("id", apunte.id)
+        .select("id");
+      if (error || !data?.length) {
+        const sinRed = !navigator.onLine || /fetch|network|load failed/i.test(error?.message ?? "");
+        setMotivo(
+          sinRed
+            ? "Sin conexión. Tus cambios quedan en este equipo y se guardan al volver la conexión."
+            : `No se pudo guardar. ${error ? `Motivo: ${error.message.slice(0, 160)}` : "La base de datos no dejó cambiar este apunte."}`,
+        );
+        setEstado("error");
+        return false;
+      }
+      guardados.current = hasta;
+      if (hasta === cambios.current) {
+        setEstado("guardado");
+        try {
+          localStorage.removeItem(copiaLocal);
+        } catch {}
+      }
+      return true;
+    }, () => false);
+    return enCurso.current;
+  }, [apunte.id, copiaLocal]);
+
+  // Si quedó una copia sin guardar más nueva que la de la nube, la recupera.
+  useEffect(() => {
+    try {
+      const copia = JSON.parse(localStorage.getItem(copiaLocal) ?? "null");
+      if (!copia || !(copia.en > Date.parse(apunte.editado_en))) return;
+      doc.current = leerDibujo(copia.dibujo);
+      setTitulo(copia.titulo ?? "");
+      setFecha(copia.fecha || apunte.fecha);
+      setFondoId(fondoDe(copia.fondo).id);
+      setVersion((v) => v + 1);
+    } catch {}
+  }, [apunte.editado_en, apunte.fecha, copiaLocal]);
 
   useEffect(() => {
     if (primeraVez.current) {
       primeraVez.current = false;
       return;
     }
+    cambios.current++;
     setEstado("pendiente");
+    try {
+      localStorage.setItem(
+        copiaLocal,
+        JSON.stringify({ en: Date.now(), dibujo: doc.current, titulo, fecha, fondo: fondoId }),
+      );
+    } catch {}
     let reintento: ReturnType<typeof setTimeout>;
     const intentar = async () => {
       if (!(await guardar())) reintento = setTimeout(intentar, 5000);
@@ -289,7 +343,7 @@ export function EditorPizarron({
       clearTimeout(espera);
       clearTimeout(reintento);
     };
-  }, [version, titulo, fecha, fondoId, guardar]);
+  }, [version, titulo, fecha, fondoId, guardar, copiaLocal]);
 
   useEffect(() => {
     if (estado === "guardado") return;
@@ -347,6 +401,30 @@ export function EditorPizarron({
     doc.current = { ...doc.current, textos };
     cambio();
   }, []);
+
+  // Al salir del pizarrón (otro enlace, cerrar o cambiar de app) guarda de
+  // una vez lo que falte, incluido un texto que se esté escribiendo.
+  const router = useRouter();
+  useEffect(() => {
+    const guardarYa = () => {
+      if (edicionActual.current) {
+        terminarTexto();
+        cambios.current++;
+      }
+      if (cambios.current !== guardados.current) return guardar();
+    };
+    const alOcultar = () => {
+      if (document.visibilityState === "hidden") guardarYa();
+    };
+    document.addEventListener("visibilitychange", alOcultar);
+    window.addEventListener("pagehide", guardarYa);
+    return () => {
+      document.removeEventListener("visibilitychange", alOcultar);
+      window.removeEventListener("pagehide", guardarYa);
+      // Al volver a la materia, la miniatura muestra lo último.
+      guardarYa()?.then((ok) => ok && router.refresh());
+    };
+  }, [guardar, terminarTexto, router]);
 
   const textoEn = (x: number, y: number) =>
     [...doc.current.textos].reverse().find((t) => dentroDe(cajaTexto(t, medirCon(t.s)), x, y, 6));
@@ -498,6 +576,11 @@ export function EditorPizarron({
           {ESTADOS[estado]}
         </span>
       </div>
+      {estado === "error" && motivo && (
+        <p role="alert" className="rounded-lg bg-alerta px-3 py-2 text-sm font-bold text-sobre-alerta">
+          {motivo}
+        </p>
+      )}
       <div className="grid gap-3 sm:grid-cols-[1fr_11rem]">
         <label className="flex flex-col gap-1 text-sm font-medium">
           Tema de la clase

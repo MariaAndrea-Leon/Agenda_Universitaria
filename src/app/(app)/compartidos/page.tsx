@@ -2,6 +2,7 @@ import Link from "next/link";
 import { DibujoSvg } from "@/components/dibujo-svg";
 import { FormEliminar } from "@/components/eliminar";
 import { Mensajes, type ParamsMensajes } from "@/components/mensajes";
+import { conDetalle } from "@/lib/acciones";
 import { COLUMNAS_COMPARTIDO, type Compartido, deQuien } from "@/lib/compartidos";
 import { fondoDe, leerDibujo } from "@/lib/pizarron";
 import { requerirUsuario } from "@/lib/sesion";
@@ -11,7 +12,7 @@ import { dejarDeCompartir } from "../materias/apuntes";
 // Apuntes que otras personas compartieron contigo.
 export default async function PaginaCompartidos({ searchParams }: { searchParams: ParamsMensajes }) {
   const { supabase, usuario } = await requerirUsuario();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("apuntes_compartidos")
     .select(COLUMNAS_COMPARTIDO)
     .eq("destinatario_id", usuario.id)
@@ -22,7 +23,9 @@ export default async function PaginaCompartidos({ searchParams }: { searchParams
     <>
       <h1 className="text-2xl font-bold">Compartidos conmigo</h1>
       <Mensajes {...await searchParams} />
-      {compartidos.length === 0 ? (
+      {error ? (
+        <Mensajes error={conDetalle("No se pudieron cargar los apuntes compartidos.", error)} />
+      ) : compartidos.length === 0 ? (
         <p className="rounded-2xl bg-superficie p-4 text-sm sm:p-6">
           Nadie te ha compartido apuntes todavía. Cuando alguien comparta uno con tu correo, aparece aquí.
         </p>
