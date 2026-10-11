@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { DescargarApunte } from "@/components/descargar-apunte";
 import { DibujoSvg } from "@/components/dibujo-svg";
-import { volverCon } from "@/lib/acciones";
+import { conDetalle, volverCon } from "@/lib/acciones";
 import { COLUMNAS_COMPARTIDO, type Compartido, deQuien } from "@/lib/compartidos";
 import type { Apunte } from "@/lib/modelos";
 import { fondoDe, leerDibujo } from "@/lib/pizarron";
@@ -12,12 +12,13 @@ import { diaLargo } from "@/lib/zona";
 export default async function PaginaApunteCompartido({ params }: { params: Promise<{ apunte: string }> }) {
   const { apunte: id } = await params;
   const { supabase, usuario } = await requerirUsuario();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("apuntes_compartidos")
     .select(COLUMNAS_COMPARTIDO)
     .eq("destinatario_id", usuario.id)
     .eq("apunte_id", id)
     .maybeSingle();
+  if (error) volverCon("/compartidos", "error", conDetalle("No se pudo abrir el apunte.", error));
   const c = data as unknown as Compartido | null;
   if (!c?.apuntes) volverCon("/compartidos", "error", "Ese apunte ya no está compartido contigo.");
   const a = c.apuntes as Apunte;
