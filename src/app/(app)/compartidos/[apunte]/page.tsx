@@ -37,7 +37,7 @@ export default async function PaginaApunteCompartido({ params }: { params: Promi
         </p>
       </div>
       <div className="overflow-hidden rounded-xl border border-texto/15">
-        <DibujoSvg dibujo={dibujo} fondo={fondoDe(a.fondo)} alto={dibujo.alto} className="block h-auto w-full" />
+        <DibujoSvg dibujo={dibujo} fondo={fondoDe(a.fondo)} alto={dibujo.alto} className="block h-auto w-full" enlaces />
       </div>
       <DescargarApunte dibujo={dibujo} fondo={a.fondo} nombre={`${titulo} ${a.fecha}`} />
     </>
