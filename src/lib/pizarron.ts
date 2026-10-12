@@ -29,14 +29,40 @@ export interface Texto {
   t: string;
 }
 
+// Figuras, imágenes y enlaces que se pueden mover y cambiar de tamaño.
+// (x, y) es el punto de partida y (w, h) el desplazamiento hasta la esquina
+// opuesta; en líneas y flechas w y h pueden ser negativos.
+export const TIPOS_FIGURA = ["rect", "elipse", "linea", "flecha"] as const;
+export type TipoFigura = (typeof TIPOS_FIGURA)[number];
+export type TipoObjeto = TipoFigura | "imagen" | "enlace";
+
+export interface Objeto {
+  id: string;
+  tipo: TipoObjeto;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  c: string;
+  g: number;
+  // Relleno de rectángulos y elipses.
+  f?: string | null;
+  // Imagen guardada en Supabase Storage: usuario/apunte/archivo.
+  ruta?: string;
+  // Enlace: dirección y texto visible.
+  url?: string;
+  t?: string;
+}
+
 export interface Dibujo {
   v: 1;
   alto: number;
+  objetos: Objeto[];
   trazos: Trazo[];
   textos: Texto[];
 }
 
-export const dibujoVacio = (): Dibujo => ({ v: 1, alto: ALTO_INICIAL, trazos: [], textos: [] });
+export const dibujoVacio = (): Dibujo => ({ v: 1, alto: ALTO_INICIAL, objetos: [], trazos: [], textos: [] });
 
 export const FONDOS = [
   { id: "pizarra-cuadros", nombre: "Pizarra con cuadros", base: "#1E2124", linea: "rgba(255,255,255,0.09)", tipo: "cuadros", oscuro: true },
@@ -84,9 +110,30 @@ export const INTERLINEA = 1.25;
 
 // Validación de lo que llega de la base de datos o del navegador.
 const color = z.string().regex(/^#[0-9A-Fa-f]{6}$/);
+export const RUTA_IMAGEN = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(webp|jpg|png)$/;
+export const esEnlaceSeguro = (url: string) => /^https?:\/\/[^\s]+$/i.test(url);
+
+const esquemaObjeto = z
+  .object({
+    id: z.string().max(40),
+    tipo: z.enum(["rect", "elipse", "linea", "flecha", "imagen", "enlace"]),
+    x: z.number().finite(),
+    y: z.number().finite(),
+    w: z.number().finite(),
+    h: z.number().finite(),
+    c: color,
+    g: z.number().positive().max(80),
+    f: color.nullable().optional(),
+    ruta: z.string().regex(RUTA_IMAGEN).optional(),
+    url: z.string().max(2000).refine(esEnlaceSeguro).optional(),
+    t: z.string().max(300).optional(),
+  })
+  .refine((o) => (o.tipo === "imagen" ? !!o.ruta : o.tipo === "enlace" ? !!o.url : true));
+
 const esquemaDibujo = z.object({
   v: z.literal(1),
   alto: z.number().min(ALTO_INICIAL).max(ALTO_MAXIMO),
+  objetos: z.array(esquemaObjeto).max(500).default([]),
   trazos: z
     .array(
       z.object({
@@ -112,8 +159,13 @@ const esquemaDibujo = z.object({
 });
 
 export function leerDibujo(valor: unknown): Dibujo {
+  return validarDibujo(valor) ?? dibujoVacio();
+}
+
+// Para guardar: un dibujo dañado se rechaza en vez de borrar lo que había.
+export function validarDibujo(valor: unknown): Dibujo | null {
   const r = esquemaDibujo.safeParse(valor);
-  return r.success ? (r.data as Dibujo) : dibujoVacio();
+  return r.success ? (r.data as Dibujo) : null;
 }
 
 const redondear = (n: number) => Math.round(n * 10) / 10;
@@ -176,9 +228,41 @@ function distanciaASegmento(px: number, py: number, ax: number, ay: number, bx: 
   return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
 }
 
+// Caja de un objeto con ancho y alto positivos.
+export function cajaObjeto(o: Pick<Objeto, "x" | "y" | "w" | "h">) {
+  return { x: Math.min(o.x, o.x + o.w), y: Math.min(o.y, o.y + o.h), ancho: Math.abs(o.w), alto: Math.abs(o.h) };
+}
+
+// ¿El punto (x, y) cae sobre el objeto? Las líneas se tocan cerca del trazo.
+export function tocaObjeto(o: Objeto, x: number, y: number, margen = 0): boolean {
+  if (o.tipo === "linea" || o.tipo === "flecha") {
+    return distanciaASegmento(x, y, o.x, o.y, o.x + o.w, o.y + o.h) <= margen + o.g / 2 + 6;
+  }
+  return dentroDe(cajaObjeto(o), x, y, margen);
+}
+
+// Puntas de una flecha que termina en (x2, y2).
+export function puntasFlecha(o: Pick<Objeto, "x" | "y" | "w" | "h" | "g">) {
+  const ang = Math.atan2(o.h, o.w);
+  const largo = Math.max(14, o.g * 4);
+  const x2 = o.x + o.w;
+  const y2 = o.y + o.h;
+  const punta = (d: number) => [x2 - largo * Math.cos(ang + d), y2 - largo * Math.sin(ang + d)] as const;
+  return { x2, y2, a: punta(0.45), b: punta(-0.45) };
+}
+
+// Tamaño de letra de un enlace según el alto de su caja.
+export const letraEnlace = (o: Pick<Objeto, "h">) => Math.max(10, Math.abs(o.h) / 1.6);
+
+export const URL_IMAGEN = (ruta: string) => `/api/imagenes/${ruta}`;
+
 // Alto que necesita el contenido (para la miniatura).
 export function altoUsado(d: Dibujo): number {
   let max = 0;
+  for (const o of d.objetos) {
+    const c = cajaObjeto(o);
+    max = Math.max(max, c.y + c.alto + o.g);
+  }
   for (const t of d.trazos) for (let i = 1; i < t.p.length; i += 3) max = Math.max(max, t.p[i] + t.g);
   for (const t of d.textos) max = Math.max(max, t.y + cajaTexto(t).alto);
   return max;

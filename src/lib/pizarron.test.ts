@@ -6,12 +6,16 @@ import {
   caminoSvg,
   colorInicial,
   COLORES,
+  cajaObjeto,
   cajaTexto,
   dentroDe,
   dibujoVacio,
   fondoDe,
   leerDibujo,
+  tocaObjeto,
   tocaTrazo,
+  validarDibujo,
+  type Objeto,
   type Trazo,
 } from "./pizarron";
 
@@ -35,7 +39,7 @@ describe("pizarrón", () => {
       trazos: [{ h: "lapiz", c: "#FFD23F", g: 6, p: [1, 2, 0.5] }],
       textos: [{ id: "a", x: 10, y: 20, c: "#F5F5F0", s: 36, t: "ATP" }],
     };
-    expect(leerDibujo(bueno)).toEqual(bueno);
+    expect(leerDibujo(bueno)).toEqual({ ...bueno, objetos: [] });
     expect(leerDibujo({ ...bueno, trazos: [{ ...bueno.trazos[0], p: [1, 2] }] })).toEqual(dibujoVacio());
   });
 
@@ -70,7 +74,27 @@ describe("pizarrón", () => {
   it("mide el alto usado", () => {
     expect(altoUsado(dibujoVacio())).toBe(0);
     expect(
-      altoUsado({ v: 1, alto: 1400, trazos: [{ h: "lapiz", c: "#000000", g: 4, p: [0, 300, 0.5] }], textos: [] }),
+      altoUsado({ v: 1, alto: 1400, objetos: [], trazos: [{ h: "lapiz", c: "#000000", g: 4, p: [0, 300, 0.5] }], textos: [] }),
     ).toBe(304);
+  });
+
+  it("valida figuras, imágenes y enlaces", () => {
+    const base = { v: 1, alto: 1400, trazos: [], textos: [] };
+    const rect: Objeto = { id: "r", tipo: "rect", x: 10, y: 10, w: 100, h: 50, c: "#2F6FE4", g: 4, f: null };
+    const img: Objeto = { id: "i", tipo: "imagen", x: 0, y: 0, w: 300, h: 200, c: "#1A1A1A", g: 1, ruta: `${"a".repeat(8)}-0000-0000-0000-${"b".repeat(12)}/${"c".repeat(8)}-0000-0000-0000-${"d".repeat(12)}/${"e".repeat(8)}-0000-0000-0000-${"f".repeat(12)}.webp` };
+    const enlace: Objeto = { id: "e", tipo: "enlace", x: 0, y: 0, w: 200, h: 40, c: "#2F6FE4", g: 1, url: "https://utp.edu.co", t: "UTP" };
+    expect(validarDibujo({ ...base, objetos: [rect, img, enlace] })?.objetos).toHaveLength(3);
+    expect(validarDibujo({ ...base, objetos: [{ ...enlace, url: "javascript:alert(1)" }] })).toBeNull();
+    expect(validarDibujo({ ...base, objetos: [{ ...img, ruta: "../otro/archivo.webp" }] })).toBeNull();
+    expect(validarDibujo({ ...base, objetos: [{ ...enlace, url: undefined }] })).toBeNull();
+    expect(leerDibujo({ ...base, objetos: "mal" }).trazos).toEqual([]);
+  });
+
+  it("toca figuras y líneas", () => {
+    const linea: Objeto = { id: "l", tipo: "flecha", x: 100, y: 100, w: -50, h: 0, c: "#000000", g: 4 };
+    expect(cajaObjeto(linea)).toEqual({ x: 50, y: 100, ancho: 50, alto: 0 });
+    expect(tocaObjeto(linea, 70, 104)).toBe(true);
+    expect(tocaObjeto(linea, 70, 130)).toBe(false);
+    expect(tocaObjeto({ ...linea, tipo: "rect", w: 50, h: 50 }, 120, 120)).toBe(true);
   });
 });

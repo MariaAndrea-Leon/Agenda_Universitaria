@@ -1,11 +1,12 @@
 "use client";
 
 import { ANCHO, type Dibujo, fondoDe } from "@/lib/pizarron";
-import { pintarTodo } from "./editor-pizarron";
+import { cargarImagenes, pintarTodo } from "./editor-pizarron";
 
 // Descarga un apunte como imagen PNG.
 export function DescargarApunte({ dibujo, fondo, nombre }: { dibujo: Dibujo; fondo: string; nombre: string }) {
-  const descargar = () => {
+  const descargar = async () => {
+    await cargarImagenes(dibujo);
     const c = document.createElement("canvas");
     const factor = 1.5;
     c.width = ANCHO * factor;

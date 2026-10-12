@@ -37,6 +37,10 @@ export async function actualizarSesion(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user && !esPublica(request.nextUrl.pathname)) {
+    // Las llamadas de la app reciben un error, no la página de ingreso.
+    if (request.nextUrl.pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Tu sesión se cerró. Vuelve a ingresar; tus cambios quedan en este equipo." }, { status: 401 });
+    }
     const url = request.nextUrl.clone();
     url.pathname = "/ingresar";
     url.search = "";
