@@ -18,6 +18,8 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     short_name: "Agenda",
     description: "Clases, tareas, exámenes y notas de la universidad en un solo lugar.",
     lang: "es",
+    dir: "ltr",
+    categories: ["education", "productivity"],
     start_url: "/hoy",
     scope: "/",
     display: "standalone",
@@ -28,6 +30,12 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
       { src: "/iconos/icono-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
       { src: "/iconos/icono-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
       { src: "/iconos/icono-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+    ],
+    // Las tiendas y el aviso de instalación muestran estas capturas.
+    screenshots: [
+      { src: "/capturas/hoy.webp", sizes: "540x1080", type: "image/webp", form_factor: "narrow", label: "Hoy: clases, entregas y exámenes" },
+      { src: "/capturas/pizarron.webp", sizes: "540x1080", type: "image/webp", form_factor: "narrow", label: "Pizarrón de apuntes" },
+      { src: "/capturas/notas.webp", sizes: "540x1080", type: "image/webp", form_factor: "narrow", label: "Notas y promedios" },
     ],
     shortcuts: [
       { name: "Hoy", url: "/hoy" },

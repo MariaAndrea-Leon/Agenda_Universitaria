@@ -32,6 +32,7 @@ export function FormEliminar({
   ariaLabel,
   enlace = false,
   className,
+  children,
 }: {
   action: (f: FormData) => Promise<void>;
   campos: Record<string, string>;
@@ -40,6 +41,7 @@ export function FormEliminar({
   ariaLabel?: string;
   enlace?: boolean;
   className?: string;
+  children?: React.ReactNode;
 }) {
   return (
     <form
@@ -52,6 +54,7 @@ export function FormEliminar({
       {Object.entries(campos).map(([nombre, valor]) => (
         <input key={nombre} type="hidden" name={nombre} value={valor} />
       ))}
+      {children}
       <Contenido etiqueta={etiqueta} enlace={enlace} ariaLabel={ariaLabel} />
     </form>
   );
