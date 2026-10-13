@@ -14,7 +14,8 @@ import { formatoNota } from "@/lib/notas";
 import { requerirUsuario, zonaDelUsuario } from "@/lib/sesion";
 import { fechaHora } from "@/lib/zona";
 import { MODO_POR_DEFECTO, TEMA_POR_DEFECTO } from "@/lib/temas/temas";
-import { cambiarEnlaceCalendario, guardarPerfil } from "./acciones";
+import { FormEliminar } from "@/components/eliminar";
+import { cambiarEnlaceCalendario, eliminarCuenta, guardarPerfil } from "./acciones";
 import { guardarAvisos } from "./avisos";
 
 export default async function PaginaPerfil({ searchParams }: { searchParams: ParamsMensajes }) {
@@ -124,6 +125,35 @@ export default async function PaginaPerfil({ searchParams }: { searchParams: Par
           Guardar recordatorios
         </Boton>
       </form>
+
+      <section id="eliminar-cuenta" className="flex flex-col gap-3 rounded-2xl bg-superficie p-4 sm:p-6">
+        <h2 className="text-lg font-semibold">Eliminar mi cuenta</h2>
+        <p className="text-sm">
+          Se borran para siempre tu perfil, semestres, materias, horarios, tareas, exámenes, notas, apuntes del pizarrón con sus
+          imágenes, lo que compartiste y tus equipos. No se puede deshacer.
+        </p>
+        <FormEliminar
+          action={eliminarCuenta}
+          campos={{}}
+          pregunta="¿Seguro que quieres eliminar tu cuenta y todos tus datos? No se puede deshacer."
+          etiqueta="Eliminar mi cuenta"
+          className="flex flex-wrap items-end gap-3"
+        >
+          <label className="flex min-w-60 flex-1 flex-col gap-1 text-sm font-medium">
+            Escribe tu correo ({usuario.email}) para confirmar
+            <input
+              name="correo"
+              type="email"
+              required
+              autoComplete="off"
+              className="rounded-lg border border-texto/20 bg-fondo px-3 py-2 text-base font-normal outline-primario"
+            />
+          </label>
+        </FormEliminar>
+        <p className="text-sm">
+          Lee la <a href="/privacidad" className="underline">política de privacidad</a>.
+        </p>
+      </section>
     </>
   );
 }

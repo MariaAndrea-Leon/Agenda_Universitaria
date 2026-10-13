@@ -1,10 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { datosDe, primerError, conDetalle, volverCon } from "@/lib/acciones";
 import { leerNota } from "@/lib/notas";
 import { requerirUsuario } from "@/lib/sesion";
+import { crearClienteServicio } from "@/lib/supabase/servicio";
 import { guardarModoEnCookie, guardarTemaEnCookie } from "@/lib/tema-cookie";
 
 const esquema = z.object({
@@ -64,4 +66,30 @@ export async function quitarEquipo(formulario: FormData) {
   if (error) volverCon("/perfil", "error", conDetalle("No se pudo quitar el equipo.", error));
   revalidatePath("/perfil");
   volverCon("/perfil", "ok", "Equipo quitado del historial.");
+}
+
+// Elimina la cuenta y todo lo que tiene (lo piden Play Store y App Store).
+// Las tablas se borran en cascada al borrar el usuario; las imágenes del
+// pizarrón se borran aparte porque viven en Storage.
+export async function eliminarCuenta(formulario: FormData) {
+  const { supabase, usuario } = await requerirUsuario();
+  const escrito = String(formulario.get("correo") ?? "").trim().toLowerCase();
+  if (!usuario.email || escrito !== usuario.email.toLowerCase()) {
+    volverCon("/perfil", "error", "Para eliminar la cuenta escribe tu correo exactamente como aparece.");
+  }
+  const servicio = crearClienteServicio();
+  if (!servicio) volverCon("/perfil", "error", "No se pudo eliminar la cuenta: falta configurar el servidor. Escríbenos y la borramos.");
+
+  const imagenes = servicio.storage.from("apuntes");
+  const { data: carpetas } = await imagenes.list(usuario.id, { limit: 1000 });
+  for (const carpeta of carpetas ?? []) {
+    const { data: archivos } = await imagenes.list(`${usuario.id}/${carpeta.name}`, { limit: 1000 });
+    const rutas = (archivos ?? []).map((a) => `${usuario.id}/${carpeta.name}/${a.name}`);
+    if (rutas.length) await imagenes.remove(rutas);
+  }
+
+  const { error } = await servicio.auth.admin.deleteUser(usuario.id);
+  if (error) volverCon("/perfil", "error", conDetalle("No se pudo eliminar la cuenta.", error));
+  await supabase.auth.signOut().catch(() => {});
+  redirect("/ingresar?ok=cuenta-eliminada");
 }

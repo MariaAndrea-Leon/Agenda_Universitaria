@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 // Rutas que se pueden ver sin iniciar sesión.
 // /api/recordatorios se protege con su propio secreto (CRON_SECRET) y
 // /api/calendario con el token privado de cada perfil.
-const PUBLICAS = ["/", "/ingresar", "/auth", "/api/recordatorios", "/api/calendario"];
+const PUBLICAS = ["/", "/ingresar", "/auth", "/privacidad", "/.well-known", "/api/recordatorios", "/api/calendario"];
 
 function esPublica(ruta: string) {
   return PUBLICAS.some((p) => ruta === p || (p !== "/" && ruta.startsWith(`${p}/`)));
