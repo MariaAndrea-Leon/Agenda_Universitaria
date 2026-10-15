@@ -94,6 +94,10 @@ const ESTADOS: Record<Estado, string> = {
 };
 
 const RADIO_BORRADOR = 14;
+// Un toque más ancho que esto (en píxeles de pantalla) es la palma de la mano.
+const MANO = 40;
+// Después de levantar el lápiz, la mano sigue sin contar este tiempo (ms).
+const PAUSA_LAPIZ = 700;
 const LIMITE_HISTORIAL = 60;
 
 function Icono({ trazo }: { trazo: string }) {
@@ -396,17 +400,37 @@ export interface ApunteEditable {
   fecha: string;
   fondo: string;
   editado_en: string;
+  revision: number;
 }
+
+// Versión guardada en la nube (la devuelve /api/apuntes/<id>).
+interface VersionGuardada {
+  revision: number;
+  titulo: string | null;
+  fecha: string;
+  fondo: string;
+  dibujo: unknown;
+  editado_por?: string | null;
+}
+
+// Cada cuánto se busca lo que guardó la otra persona en un apunte compartido.
+const REVISAR_CADA = 5000;
 
 export function EditorPizarron({
   apunte,
   dibujo: inicial,
   materia,
+  volver,
+  compartido = false,
   children,
 }: {
   apunte: ApunteEditable;
   dibujo: Dibujo;
   materia: { nombre: string; color: string };
+  // A dónde lleva el enlace de arriba (por defecto, a la materia).
+  volver?: { href: string; nombre: string };
+  // Si otra persona también lo puede editar, se traen sus cambios.
+  compartido?: boolean;
   children?: React.ReactNode;
 }) {
   const doc = useRef<Dibujo>(inicial);
@@ -433,6 +457,12 @@ export function EditorPizarron({
   const trazo = useRef<Trazo | null>(null);
   const toques = useRef(new Map<number, number>());
   const lapizVisto = useRef(false);
+  // Apoyo de la mano: mientras el lápiz está en la hoja (y un momento
+  // después) los toques no escriben ni mueven nada.
+  const activo = useRef<{ id: number; tipo: string } | null>(null);
+  const lapizAbajo = useRef(false);
+  const lapizArriba = useRef(0);
+  const ignorados = useRef(new Set<number>());
   const borrando = useRef<{ antes: string; cambio: boolean } | null>(null);
   const primeraVez = useRef(true);
   const [figura, setFigura] = useState<TipoFigura>("rect");
@@ -440,10 +470,18 @@ export function EditorPizarron({
   const arrastre = useRef<Arrastre | null>(null);
   const [formEnlace, setFormEnlace] = useState<{ url: string; t: string; id?: string } | null>(null);
   const [aviso, setAviso] = useState("");
+  const [novedad, setNovedad] = useState("");
   const archivoImagen = useRef<HTMLInputElement>(null);
   const seleccionActual = useRef(seleccion);
   seleccionActual.current = seleccion;
 
+
+  // Recuerda si en este equipo se escribe con lápiz.
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("agenda:lapiz")) lapizVisto.current = true;
+    } catch {}
+  }, []);
 
   // Ajusta el tamaño del lienzo al ancho disponible.
   useLayoutEffect(() => {
@@ -515,6 +553,41 @@ export function EditorPizarron({
   const cambios = useRef(0);
   const guardados = useRef(0);
   const enCurso = useRef<Promise<boolean>>(Promise.resolve(true));
+  // Revisión de la nube sobre la que se está editando.
+  const revision = useRef(apunte.revision || 1);
+  // Al cargar la versión de la nube no hay nada nuevo que guardar.
+  const sinGuardar = useRef(false);
+
+  // Pone en la hoja la versión que está en la nube. Si chocó con cambios
+  // propios (otra persona guardó primero), esos cambios quedan en Deshacer.
+  const cargarGuardada = useCallback(
+    (v: VersionGuardada, choque: boolean) => {
+      const mio = JSON.stringify(doc.current);
+      sinGuardar.current = true;
+      revision.current = v.revision;
+      guardados.current = cambios.current;
+      doc.current = leerDibujo(v.dibujo);
+      atras.current = choque ? [mio] : [];
+      adelante.current = [];
+      setHistorial({ atras: atras.current.length, adelante: 0 });
+      setTitulo(v.titulo ?? "");
+      setFecha(v.fecha);
+      setFondoId(fondoDe(v.fondo).id);
+      setSeleccion(null);
+      setVersion((n) => n + 1);
+      setEstado("guardado");
+      try {
+        localStorage.removeItem(copiaLocal);
+      } catch {}
+      const quien = v.editado_por || "La otra persona";
+      setNovedad(
+        choque
+          ? `${quien} guardó cambios en este apunte antes que tú, así que quedó su versión. Tus últimos cambios no se guardaron; si los quieres recuperar, toca Deshacer.`
+          : `${quien} hizo cambios en este apunte. Ya los ves aquí.`,
+      );
+    },
+    [copiaLocal],
+  );
 
   const guardar = useCallback(() => {
     // Uno a la vez, para que un guardado viejo no pise uno nuevo.
@@ -525,7 +598,7 @@ export function EditorPizarron({
       const { titulo, fecha, fondoId } = datosParaGuardar.current;
       let fallo = "";
       try {
-        const cuerpo = JSON.stringify({ titulo, fecha, fondo: fondoId, dibujo: doc.current });
+        const cuerpo = JSON.stringify({ titulo, fecha, fondo: fondoId, dibujo: doc.current, revision: revision.current });
         const respuesta = await fetch(`/api/apuntes/${apunte.id}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -536,10 +609,14 @@ export function EditorPizarron({
           // Nunca se queda esperando: si no responde, se reintenta.
           signal: conLimite(20000),
         });
-        if (!respuesta.ok) {
-          const r = await respuesta.json().catch(() => null);
-          fallo = r?.error || `El servidor respondió ${respuesta.status}.`;
+        const r = await respuesta.json().catch(() => null);
+        if (respuesta.status === 409 && r?.actual) {
+          // Gana quien guardó primero: se carga su versión.
+          cargarGuardada(r.actual, true);
+          return true;
         }
+        if (!respuesta.ok) fallo = r?.error || `El servidor respondió ${respuesta.status}.`;
+        else if (typeof r?.revision === "number") revision.current = r.revision;
       } catch {
         fallo = navigator.onLine
           ? "La conexión está lenta o se cortó. Tus cambios quedan en este equipo y se vuelve a intentar."
@@ -560,13 +637,14 @@ export function EditorPizarron({
       return true;
     }, () => false);
     return enCurso.current;
-  }, [apunte.id, copiaLocal]);
+  }, [apunte.id, copiaLocal, cargarGuardada]);
 
   // Si quedó una copia sin guardar más nueva que la de la nube, la recupera.
   useEffect(() => {
     try {
       const copia = JSON.parse(localStorage.getItem(copiaLocal) ?? "null");
       if (!copia || !(copia.en > Date.parse(apunte.editado_en))) return;
+      if (typeof copia.revision === "number") revision.current = copia.revision;
       doc.current = leerDibujo(copia.dibujo);
       setTitulo(copia.titulo ?? "");
       setFecha(copia.fecha || apunte.fecha);
@@ -576,8 +654,9 @@ export function EditorPizarron({
   }, [apunte.editado_en, apunte.fecha, copiaLocal]);
 
   useEffect(() => {
-    if (primeraVez.current) {
+    if (primeraVez.current || sinGuardar.current) {
       primeraVez.current = false;
+      sinGuardar.current = false;
       return;
     }
     cambios.current++;
@@ -585,7 +664,7 @@ export function EditorPizarron({
     try {
       localStorage.setItem(
         copiaLocal,
-        JSON.stringify({ en: Date.now(), dibujo: doc.current, titulo, fecha, fondo: fondoId }),
+        JSON.stringify({ en: Date.now(), dibujo: doc.current, titulo, fecha, fondo: fondoId, revision: revision.current }),
       );
     } catch {}
     let reintento: ReturnType<typeof setTimeout>;
@@ -698,6 +777,31 @@ export function EditorPizarron({
       guardarYa()?.then((ok) => ok && router.refresh());
     };
   }, [guardar, terminarTexto, router]);
+
+  // En un apunte compartido, trae lo que la otra persona va guardando
+  // mientras aquí no haya nada a medio hacer ni sin guardar.
+  useEffect(() => {
+    if (!compartido) return;
+    let viva = true;
+    const quieto = () =>
+      cambios.current === guardados.current && !trazo.current && !arrastre.current && !borrando.current && !edicionActual.current;
+    const revisar = async () => {
+      if (document.visibilityState !== "visible" || !quieto()) return;
+      try {
+        const r = await fetch(`/api/apuntes/${apunte.id}?revision=${revision.current}`, { cache: "no-store", signal: conLimite(10000) });
+        if (r.status !== 200) return;
+        const { actual } = await r.json();
+        if (viva && actual && actual.revision !== revision.current && quieto()) cargarGuardada(actual, false);
+      } catch {}
+    };
+    const cada = setInterval(revisar, REVISAR_CADA);
+    document.addEventListener("visibilitychange", revisar);
+    return () => {
+      viva = false;
+      clearInterval(cada);
+      document.removeEventListener("visibilitychange", revisar);
+    };
+  }, [compartido, apunte.id, cargarGuardada]);
 
   const textoEn = (x: number, y: number) =>
     [...doc.current.textos].reverse().find((t) => dentroDe(cajaTexto(t, medirCon(t.s)), x, y, 6));
@@ -989,24 +1093,65 @@ export function EditorPizarron({
     }
   };
 
+  // Deja sin efecto lo que empezó un toque (la palma o un dedo) cuando llega
+  // el lápiz o un segundo dedo.
+  const soltarToque = () => {
+    if (activo.current?.tipo !== "touch") return;
+    activo.current = null;
+    trazo.current = null;
+    if (arrastre.current) {
+      arrastre.current = null;
+      pintarBase();
+    }
+    if (borrando.current) {
+      if (borrando.current.cambio) {
+        doc.current = JSON.parse(borrando.current.antes);
+        pintarBase();
+      }
+      borrando.current = null;
+    }
+    pintarVista();
+  };
+
+  // Un toque grande (la palma) o cualquier toque con el lápiz en la hoja.
+  const esMano = (e: React.PointerEvent) =>
+    e.pointerType === "touch" &&
+    (Math.max(e.width, e.height) > MANO || (lapizVisto.current && (lapizAbajo.current || Date.now() - lapizArriba.current < PAUSA_LAPIZ)));
+
   const alBajar = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (e.pointerType === "pen") lapizVisto.current = true;
+    if (e.pointerType === "pen") {
+      if (!lapizVisto.current) {
+        lapizVisto.current = true;
+        try {
+          localStorage.setItem("agenda:lapiz", "1");
+        } catch {}
+      }
+      lapizAbajo.current = true;
+      // Si la mano tocó antes que el lápiz, lo que hizo no cuenta.
+      soltarToque();
+      for (const id of toques.current.keys()) ignorados.current.add(id);
+      toques.current.clear();
+    }
     if (e.pointerType === "touch") {
+      if (esMano(e)) {
+        ignorados.current.add(e.pointerId);
+        return;
+      }
       toques.current.set(e.pointerId, e.clientY);
       // Dos dedos (o el dedo cuando ya se usa lápiz) mueven la hoja.
       if (toques.current.size > 1 || lapizVisto.current) {
-        trazo.current = null;
-        pintarVista();
+        soltarToque();
         return;
       }
     }
-    if (e.button > 0) return;
+    if (e.button > 0 || activo.current) return;
     if (herramienta === "mover") {
       toques.current.set(e.pointerId, e.clientY);
       return;
     }
     if (herramienta === "texto") return; // se abre al soltar
     e.currentTarget.setPointerCapture(e.pointerId);
+    activo.current = { id: e.pointerId, tipo: e.pointerType };
     const { x, y } = punto(e);
     if (herramienta === "seleccionar" || herramienta === "figura") {
       empezarArrastre(x, y);
@@ -1024,12 +1169,16 @@ export function EditorPizarron({
   };
 
   const alMover = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (ignorados.current.has(e.pointerId)) return;
     const anterior = toques.current.get(e.pointerId);
-    if (anterior !== undefined && (toques.current.size > 1 || lapizVisto.current || herramienta === "mover")) {
+    if (anterior !== undefined && activo.current?.id !== e.pointerId) {
+      // Con el lápiz en la hoja, la mano no mueve la hoja.
+      if (lapizAbajo.current) return;
       window.scrollBy(0, (anterior - e.clientY) / Math.max(1, toques.current.size));
       toques.current.set(e.pointerId, e.clientY);
       return;
     }
+    if (activo.current?.id !== e.pointerId) return;
     if (borrando.current) {
       const { x, y } = punto(e);
       borrarEn(x, y);
@@ -1053,6 +1202,19 @@ export function EditorPizarron({
 
   const alSoltar = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const eraToque = toques.current.delete(e.pointerId);
+    const eraMano = ignorados.current.delete(e.pointerId);
+    if (e.pointerType === "pen") {
+      lapizAbajo.current = false;
+      lapizArriba.current = Date.now();
+    }
+    if (activo.current?.id !== e.pointerId) {
+      if (herramienta === "texto" && e.type === "pointerup" && !eraMano && !(eraToque && lapizVisto.current)) {
+        const { x, y } = punto(e);
+        abrirTexto(x, y);
+      }
+      return;
+    }
+    activo.current = null;
     if (arrastre.current) {
       terminarArrastre();
       return;
@@ -1071,11 +1233,6 @@ export function EditorPizarron({
       recordar();
       doc.current = { ...doc.current, trazos: [...doc.current.trazos, t] };
       cambio();
-      return;
-    }
-    if (herramienta === "texto" && e.type === "pointerup" && !(eraToque && lapizVisto.current)) {
-      const { x, y } = punto(e);
-      abrirTexto(x, y);
     }
   };
 
@@ -1126,8 +1283,8 @@ export function EditorPizarron({
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className="size-4 shrink-0 rounded-full" style={{ backgroundColor: materia.color }} aria-hidden />
-        <Link href={`/materias/${apunte.materia_id}`} className="text-sm underline">
-          {materia.nombre}
+        <Link href={volver?.href ?? `/materias/${apunte.materia_id}`} className="text-sm underline">
+          {volver?.nombre ?? materia.nombre}
         </Link>
         <span className="ml-auto text-sm" role="status" aria-live="polite">
           {ESTADOS[estado]}
@@ -1338,6 +1495,15 @@ export function EditorPizarron({
             {aviso}
           </p>
         )}
+        {/* En la barra fija, para que se vea aunque se esté abajo en la hoja. */}
+        {novedad && (
+          <div role="status" className="flex items-start gap-3 rounded-lg bg-fondo px-3 py-2 text-sm">
+            <p className="flex-1">{novedad}</p>
+            <button type="button" onClick={() => setNovedad("")} className="font-medium underline">
+              Entendido
+            </button>
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           <div role="radiogroup" aria-label="Color" className="-mx-2 flex max-w-full gap-1.5 overflow-x-auto px-2 py-1 sm:flex-wrap">
             {COLORES.map((c) => (
@@ -1376,8 +1542,9 @@ export function EditorPizarron({
           ref={lienzo}
           aria-label="Hoja del pizarrón. Escribe con el dedo, el lápiz o el mouse; con la herramienta Texto, toca la hoja para escribir con el teclado."
           role="img"
-          className="block w-full"
+          className="block w-full select-none"
           style={{
+            WebkitTouchCallout: "none",
             height: escala ? doc.current.alto * escala : undefined,
             aspectRatio: escala ? undefined : `${ANCHO} / ${doc.current.alto}`,
             touchAction: herramienta === "mover" ? "pan-y pinch-zoom" : "none",
@@ -1414,7 +1581,7 @@ export function EditorPizarron({
         )}
       </div>
       <p className="text-sm">
-        En el celular o la tablet, muévete por la hoja con dos dedos. Si escribes con lápiz, el dedo solo mueve la hoja.
+        En el celular o la tablet, muévete por la hoja con dos dedos. Si escribes con lápiz, puedes apoyar la mano en la pantalla: solo el lápiz escribe y con un dedo mueves la hoja.
       </p>
 
       <div className="flex flex-wrap items-center gap-3">

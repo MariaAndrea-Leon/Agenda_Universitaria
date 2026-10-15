@@ -1,14 +1,12 @@
-import Link from "next/link";
-import { DescargarApunte } from "@/components/descargar-apunte";
-import { DibujoSvg } from "@/components/dibujo-svg";
+import { EditorPizarron } from "@/components/editor-pizarron";
 import { conDetalle, volverCon } from "@/lib/acciones";
 import { COLUMNAS_COMPARTIDO, type Compartido, deQuien } from "@/lib/compartidos";
 import type { Apunte } from "@/lib/modelos";
-import { fondoDe, leerDibujo } from "@/lib/pizarron";
+import { leerDibujo } from "@/lib/pizarron";
 import { requerirUsuario } from "@/lib/sesion";
-import { diaLargo } from "@/lib/zona";
 
-// Un apunte compartido contigo: se ve completo, sin editar.
+// Un apunte compartido contigo: lo pueden editar quien lo compartió y tú.
+// Si los dos guardan al mismo tiempo, queda lo que se guardó primero.
 export default async function PaginaApunteCompartido({ params }: { params: Promise<{ apunte: string }> }) {
   const { apunte: id } = await params;
   const { supabase, usuario } = await requerirUsuario();
@@ -22,24 +20,21 @@ export default async function PaginaApunteCompartido({ params }: { params: Promi
   const c = data as unknown as Compartido | null;
   if (!c?.apuntes) volverCon("/compartidos", "error", "Ese apunte ya no está compartido contigo.");
   const a = c.apuntes as Apunte;
-  const dibujo = leerDibujo(a.dibujo);
-  const titulo = a.titulo || "Apunte de clase";
 
   return (
     <>
-      <Link href="/compartidos" className="text-sm underline">
-        Compartidos conmigo
-      </Link>
-      <div>
-        <h1 className="text-2xl font-bold">{titulo}</h1>
+      <h1 className="sr-only">Apunte de {c.materia_nombre}, compartido por {deQuien(c)}</h1>
+      <EditorPizarron
+        apunte={a}
+        dibujo={leerDibujo(a.dibujo)}
+        materia={{ nombre: c.materia_nombre, color: "transparent" }}
+        volver={{ href: "/compartidos", nombre: "Compartidos conmigo" }}
+        compartido
+      >
         <p className="text-sm">
-          {c.materia_nombre} · <span className="first-letter:uppercase">{diaLargo(a.fecha)}</span> · De {deQuien(c)}
+          De {deQuien(c)} · {c.materia_nombre}. Los cambios que hagas los ve también quien lo compartió.
         </p>
-      </div>
-      <div className="overflow-hidden rounded-xl border border-texto/15">
-        <DibujoSvg dibujo={dibujo} fondo={fondoDe(a.fondo)} alto={dibujo.alto} className="block h-auto w-full" enlaces />
-      </div>
-      <DescargarApunte dibujo={dibujo} fondo={a.fondo} nombre={`${titulo} ${a.fecha}`} />
+      </EditorPizarron>
     </>
   );
 }

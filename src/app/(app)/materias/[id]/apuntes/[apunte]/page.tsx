@@ -27,7 +27,7 @@ export default async function PaginaApunte({
     .maybeSingle();
   // Si se borró (o el enlace es viejo), vuelve a la materia en vez de un error 404.
   if (!data) volverCon(`/materias/${id}`, "error", "Ese apunte ya no existe.");
-  // Un apunte que alguien compartió contigo se ve en Compartidos, sin editar.
+  // Un apunte que alguien compartió contigo se abre desde Compartidos.
   if (data.usuario_id !== usuario.id) redirect(`/compartidos/${apunteId}`);
   const apunte = data as Apunte & { materias: { nombre: string; color: string } };
   const { data: compartidos } = await supabase
@@ -41,11 +41,16 @@ export default async function PaginaApunte({
     <>
       <h1 className="sr-only">Apunte de {apunte.materias.nombre}</h1>
       <Mensajes error={error} ok={ok} />
-      <EditorPizarron apunte={apunte} dibujo={leerDibujo(apunte.dibujo)} materia={apunte.materias}>
+      <EditorPizarron
+        apunte={apunte}
+        dibujo={leerDibujo(apunte.dibujo)}
+        materia={apunte.materias}
+        compartido={(compartidos ?? []).length > 0}
+      >
         <section id="compartir" className="flex flex-col gap-3 rounded-2xl bg-superficie p-4 sm:p-6">
           <h2 className="text-lg font-semibold">Compartir este apunte</h2>
           <p className="text-sm">
-            Escribe el correo de otra persona que use la agenda. Lo verá en su sección Compartidos, sin poder cambiarlo.
+            Escribe el correo de otra persona que use la agenda. Lo verá en su sección Compartidos y los dos lo pueden editar. Si guardan al mismo tiempo, queda lo que se guardó primero.
           </p>
           <form action={compartirApunte} className="flex flex-wrap items-end gap-3">
             <input type="hidden" name="id" value={apunte.id} />
