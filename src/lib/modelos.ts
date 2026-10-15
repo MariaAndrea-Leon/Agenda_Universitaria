@@ -117,4 +117,6 @@ export interface Apunte {
   dibujo: unknown; // se valida con leerDibujo
   creado_en: string;
   editado_en: string;
+  revision: number; // sube con cada guardado; gana el primero que guarda
+  editado_por_nombre: string | null;
 }

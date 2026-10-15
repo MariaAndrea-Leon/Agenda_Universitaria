@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { crearClienteServidor } from "@/lib/supabase/servidor";
 
-// Sube una imagen para un apunte propio. El navegador ya la achicó; aquí
+// Sube una imagen para un apunte propio o compartido contigo (va en la
+// carpeta de quien la sube). El navegador ya la achicó; aquí
 // solo se revisa el tipo y el tamaño.
 const TIPOS: Record<string, string> = { "image/webp": "webp", "image/jpeg": "jpg", "image/png": "png" };
 const MAXIMO = 4 * 1024 * 1024;
@@ -19,8 +20,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   } = await supabase.auth.getUser();
   if (!user) return responder("Tu sesión se cerró. Vuelve a ingresar.", 401);
 
-  const { data: apunte } = await supabase.from("apuntes").select("id").eq("id", id).eq("usuario_id", user.id).maybeSingle();
-  if (!apunte) return responder("Este apunte ya no existe o no es tuyo.", 404);
+  // Las reglas de la base solo dejan leer los apuntes propios y los compartidos contigo.
+  const { data: apunte } = await supabase.from("apuntes").select("id").eq("id", id).maybeSingle();
+  if (!apunte) return responder("Este apunte ya no existe o ya no está compartido contigo.", 404);
 
   const archivo = (await request.formData().catch(() => null))?.get("imagen");
   if (!(archivo instanceof File)) return responder("No llegó la imagen.", 400);
