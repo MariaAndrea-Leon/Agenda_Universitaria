@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import { armarPdf, type PaginaPdf } from "@/lib/pdf";
 import {
   agregarPunto,
   ALTO_EXTRA,
@@ -13,6 +14,7 @@ import {
   puntasFlecha,
   URL_IMAGEN,
   ALTO_MAXIMO,
+  altoUsado,
   ANCHO,
   cajaTexto,
   colorInicial,
@@ -1444,21 +1446,50 @@ export function EditorPizarron({
     cambio();
   };
 
+  // PDF en hojas A4 a unos 300 ppp: la hoja mide 1000 unidades de ancho, así
+  // que cada página cubre 1414 unidades de alto.
+  const [preparandoPdf, setPreparandoPdf] = useState(false);
   const descargar = async () => {
-    await cargarImagenes(doc.current);
-    const c = document.createElement("canvas");
-    const factor = 1.5;
-    c.width = ANCHO * factor;
-    c.height = doc.current.alto * factor;
-    pintarTodo(c.getContext("2d")!, doc.current, fondo, factor);
-    c.toBlob((blob) => {
-      if (!blob) return;
+    if (preparandoPdf) return;
+    setPreparandoPdf(true);
+    try {
+      const d = doc.current;
+      await cargarImagenes(d);
+      const factor = 2.5;
+      const anchoPt = 595.28;
+      const altoPt = 841.89;
+      const porPagina = (ANCHO * altoPt) / anchoPt;
+      const hasta = Math.min(d.alto, Math.max(altoUsado(d) + 60, porPagina));
+      const paginas: PaginaPdf[] = [];
+      for (let y = 0; y < hasta - 1; y += porPagina) {
+        const h = Math.min(porPagina, hasta - y);
+        const c = document.createElement("canvas");
+        c.width = ANCHO * factor;
+        c.height = Math.round(h * factor);
+        const ctx = c.getContext("2d")!;
+        ctx.translate(0, -y * factor);
+        pintarTodo(ctx, d, fondo, factor);
+        const blob = await new Promise<Blob | null>((listo) => c.toBlob(listo, "image/jpeg", 0.92));
+        if (!blob) return;
+        paginas.push({
+          jpeg: new Uint8Array(await blob.arrayBuffer()),
+          pixelesAncho: c.width,
+          pixelesAlto: c.height,
+          ancho: anchoPt,
+          alto: (h / porPagina) * altoPt,
+        });
+        c.width = c.height = 0;
+      }
+      const nombre = (titulo.trim() || materia.nombre).replace(/[\\/:*?"<>|]/g, "");
+      const pdf = armarPdf(paginas, titulo.trim() || materia.nombre);
       const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `${(titulo.trim() || materia.nombre).replace(/[\\/:*?"<>|]/g, "")} ${fecha}.png`;
+      a.href = URL.createObjectURL(new Blob([pdf as BlobPart], { type: "application/pdf" }));
+      a.download = `${nombre} ${fecha}.pdf`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    });
+    } finally {
+      setPreparandoPdf(false);
+    }
   };
 
   const seleccionado = buscar(doc.current, seleccion);
@@ -1794,8 +1825,13 @@ export function EditorPizarron({
         >
           Más espacio abajo
         </button>
-        <button type="button" onClick={descargar} className="rounded-xl border border-texto/20 bg-fondo px-4 py-2 text-sm font-medium">
-          Descargar imagen
+        <button
+          type="button"
+          onClick={descargar}
+          disabled={preparandoPdf}
+          className="rounded-xl border border-texto/20 bg-fondo px-4 py-2 text-sm font-medium disabled:opacity-60"
+        >
+          {preparandoPdf ? "Preparando PDF…" : "Descargar PDF"}
         </button>
         {estado !== "guardado" && (
           <button type="button" onClick={guardar} className="rounded-xl bg-primario px-4 py-2 text-sm font-medium text-sobre-primario">
