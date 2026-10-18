@@ -95,9 +95,7 @@ const ESTADOS: Record<Estado, string> = {
 
 const RADIO_BORRADOR = 14;
 // Se guarda después de esta pausa sin tocar la hoja (ms).
-const PAUSA_GUARDAR = 3000;
-// Si se escribe sin pausas, igual se guarda al levantar el lápiz cada tanto (ms).
-const GUARDAR_AL_MENOS = 30000;
+const PAUSA_GUARDAR = 10000;
 // Un toque más ancho que esto (en píxeles de pantalla) es la palma de la mano.
 const MANO = 40;
 // Después de levantar el lápiz, la mano sigue sin contar este tiempo (ms).
@@ -179,6 +177,38 @@ function pintarTrazo(ctx: CanvasRenderingContext2D, t: Trazo, k: number) {
     }
   }
   ctx.restore();
+}
+
+// Pinta solo los tramos nuevos de un trazo de lápiz (desde el tramo `desde`)
+// y devuelve hasta dónde quedó. El último tramo espera al siguiente punto.
+function pintarTramos(ctx: CanvasRenderingContext2D, t: Trazo, k: number, desde: number) {
+  const p = t.p;
+  const n = p.length / 3;
+  if (n < 3 || desde >= n - 1) return desde;
+  ctx.save();
+  ctx.scale(k, k);
+  ctx.strokeStyle = t.c;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  for (let i = desde; i < n - 1; i++) {
+    const x0 = i === 1 ? p[0] : (p[(i - 1) * 3] + p[i * 3]) / 2;
+    const y0 = i === 1 ? p[1] : (p[(i - 1) * 3 + 1] + p[i * 3 + 1]) / 2;
+    ctx.lineWidth = grosorCon(t.g, (p[(i - 1) * 3 + 2] + p[i * 3 + 2]) / 2);
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.quadraticCurveTo(p[i * 3], p[i * 3 + 1], (p[i * 3] + p[(i + 1) * 3]) / 2, (p[i * 3 + 1] + p[(i + 1) * 3 + 1]) / 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+  return n - 1;
+}
+
+// Píxeles por unidad de la hoja. Se limita el total de píxeles: con un lienzo
+// enorme las tablets se ponen lentas y el iPad deja la hoja en blanco.
+const MAX_PIXELES = 8_000_000;
+function densidad(escala: number, alto: number) {
+  const dpr = window.devicePixelRatio || 1;
+  return Math.min(dpr, Math.sqrt(MAX_PIXELES / (ANCHO * alto * escala * escala)));
 }
 
 function pintarTexto(ctx: CanvasRenderingContext2D, t: Texto, k: number) {
@@ -473,6 +503,11 @@ export function EditorPizarron({
 
   const contenedor = useRef<HTMLDivElement>(null);
   const lienzo = useRef<HTMLCanvasElement>(null);
+  // Capa de tinta: el trazo que se está escribiendo se pinta en un lienzo
+  // del tamaño de la pantalla, encima de la hoja. La hoja (que puede ser muy
+  // grande) solo se toca una vez, al levantar el lápiz.
+  const tinta = useRef<HTMLCanvasElement>(null);
+  const enTinta = useRef({ y: 0, k: 1, hechos: 1 });
   const base = useRef<HTMLCanvasElement | null>(null);
   const areaTexto = useRef<HTMLTextAreaElement>(null);
   // Historial: copias del dibujo. Nunca se cambia un dibujo por dentro (siempre
@@ -526,7 +561,7 @@ export function EditorPizarron({
     const b = base.current;
     if (!c || !b) return;
     const ctx = c.getContext("2d")!;
-    const k = escala * (window.devicePixelRatio || 1);
+    const k = escala * densidad(escala, doc.current.alto);
     const zona = solo && !arrastre.current && !seleccionActual.current ? cajaTrazo(solo, k, c) : null;
     if (zona) {
       const [x, y, w, h] = zona;
@@ -555,7 +590,7 @@ export function EditorPizarron({
   const pintarBase = useCallback(() => {
     const c = lienzo.current;
     if (!c || !escala) return;
-    const factor = escala * (window.devicePixelRatio || 1);
+    const factor = escala * densidad(escala, doc.current.alto);
     const w = Math.round(ANCHO * factor);
     const h = Math.round(doc.current.alto * factor);
     if (c.width !== w || c.height !== h) {
@@ -602,8 +637,6 @@ export function EditorPizarron({
   datosParaGuardar.current = { titulo, fecha, fondoId };
   const cambios = useRef(0);
   const guardados = useRef(0);
-  // Desde cuándo hay cambios sin guardar (0 si no hay).
-  const pendienteDesde = useRef(0);
   const enCurso = useRef<Promise<boolean>>(Promise.resolve(true));
   // Revisión de la nube sobre la que se está editando.
   const revision = useRef(apunte.revision || 1);
@@ -618,7 +651,6 @@ export function EditorPizarron({
       sinGuardar.current = true;
       revision.current = v.revision;
       guardados.current = cambios.current;
-      pendienteDesde.current = 0;
       doc.current = leerDibujo(v.dibujo);
       atras.current = choque ? [mio] : [];
       adelante.current = [];
@@ -681,7 +713,6 @@ export function EditorPizarron({
         return false;
       }
       guardados.current = hasta;
-      pendienteDesde.current = 0;
       if (hasta === cambios.current) {
         setEstado("guardado");
         try {
@@ -719,9 +750,8 @@ export function EditorPizarron({
     } catch {}
   }, [copiaLocal]);
 
-  // Mientras se escribe no se guarda nada: se guarda cuando hay una pausa
-  // (PAUSA_GUARDAR sin tocar la hoja), o al levantar el lápiz si ya pasó
-  // GUARDAR_AL_MENOS sin guardar. Al salir se guarda de una vez.
+  // Mientras se escribe no se guarda nada: se guarda cuando pasan
+  // PAUSA_GUARDAR sin tocar la hoja. Al salir se guarda de una vez.
   useEffect(() => {
     if (primeraVez.current || sinGuardar.current) {
       primeraVez.current = false;
@@ -730,8 +760,6 @@ export function EditorPizarron({
     }
     cambios.current++;
     setEstado("pendiente");
-    pendienteDesde.current ||= Date.now();
-    const yaEsHora = Date.now() - pendienteDesde.current > GUARDAR_AL_MENOS;
     let espera: ReturnType<typeof setTimeout>;
     const intentar = async () => {
       // Con el lápiz o el dedo en la hoja, espera a que lo levante.
@@ -742,7 +770,7 @@ export function EditorPizarron({
       copiar();
       if (!(await guardar())) espera = setTimeout(intentar, 5000);
     };
-    espera = setTimeout(intentar, yaEsHora ? 0 : PAUSA_GUARDAR);
+    espera = setTimeout(intentar, PAUSA_GUARDAR);
     return () => clearTimeout(espera);
   }, [version, titulo, fecha, fondoId, guardar, copiar]);
 
@@ -1169,6 +1197,7 @@ export function EditorPizarron({
     if (activo.current?.tipo !== "touch") return;
     activo.current = null;
     trazo.current = null;
+    cerrarTinta();
     if (arrastre.current) {
       arrastre.current = null;
       pintarBase();
@@ -1235,7 +1264,45 @@ export function EditorPizarron({
     const h = herramienta === "resaltador" ? "resaltador" : "lapiz";
     trazo.current = { h, c: color, g: GROSORES[grosor][h], p: [] };
     agregarPunto(trazo.current.p, x, y, e.pointerType === "pen" ? e.pressure : 0.5);
-    pintarVista(trazo.current);
+    abrirTinta();
+  };
+
+  // Ubica la capa de tinta sobre la parte de la hoja que se ve.
+  const abrirTinta = () => {
+    const c = tinta.current;
+    const caja = contenedor.current?.getBoundingClientRect();
+    if (!c || !caja) return;
+    const dpr = window.devicePixelRatio || 1;
+    const arriba = Math.max(0, -caja.top);
+    const abajo = Math.min(caja.height, window.innerHeight - caja.top);
+    const alto = Math.max(1, abajo - arriba);
+    const w = Math.round(caja.width * dpr);
+    const h = Math.round(alto * dpr);
+    if (c.width !== w || c.height !== h) {
+      c.width = w;
+      c.height = h;
+    } else c.getContext("2d")!.clearRect(0, 0, w, h);
+    c.style.top = `${arriba}px`;
+    c.style.height = `${alto}px`;
+    c.style.display = "block";
+    enTinta.current = { y: arriba * dpr, k: escala * dpr, hechos: 1 };
+  };
+
+  const pintarTinta = (t: Trazo) => {
+    const c = tinta.current;
+    if (!c || c.style.display !== "block") return pintarVista(t);
+    const ctx = c.getContext("2d")!;
+    const { y, k } = enTinta.current;
+    ctx.setTransform(1, 0, 0, 1, 0, -y);
+    if (t.h === "resaltador") {
+      // Transparente: se repinta entero para que no se acumule.
+      ctx.clearRect(0, y, c.width, c.height);
+      pintarTrazo(ctx, t, k);
+    } else enTinta.current.hechos = pintarTramos(ctx, t, k, enTinta.current.hechos);
+  };
+
+  const cerrarTinta = () => {
+    if (tinta.current) tinta.current.style.display = "none";
   };
 
   const alMover = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -1267,7 +1334,7 @@ export function EditorPizarron({
       const { x, y } = punto(ev);
       agregado = agregarPunto(t.p, x, y, e.pointerType === "pen" ? ev.pressure : 0.5) || agregado;
     }
-    if (agregado) pintarVista(t);
+    if (agregado) pintarTinta(t);
   };
 
   const alSoltar = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -1304,10 +1371,11 @@ export function EditorPizarron({
       doc.current = { ...doc.current, trazos: [...doc.current.trazos, t] };
       const b = base.current;
       if (b && escala) {
-        pintarTrazo(b.getContext("2d")!, t, escala * (window.devicePixelRatio || 1));
+        pintarTrazo(b.getContext("2d")!, t, escala * densidad(escala, doc.current.alto));
         soloTrazoNuevo.current = true;
         pintarVista(t);
       } else pintarVista();
+      cerrarTinta();
       cambio();
     }
   };
@@ -1632,6 +1700,7 @@ export function EditorPizarron({
           onPointerCancel={alSoltar}
           onPointerLeave={(e) => e.pointerType === "mouse" && trazo.current && alSoltar(e)}
         />
+        <canvas ref={tinta} aria-hidden className="pointer-events-none absolute left-0 hidden w-full" />
         {edicion && (
           <textarea
             ref={areaTexto}
