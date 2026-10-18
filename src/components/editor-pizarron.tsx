@@ -536,6 +536,57 @@ export function EditorPizarron({
   seleccionActual.current = seleccion;
 
 
+  // En la tablet el navegador espera un momento después de cada trazo para
+  // ver si el toque era un gesto suyo (doble toque, lupa, escritura a mano
+  // de iPad). Cancelar los toques sobre la hoja quita esa espera; la hoja se
+  // mueve con nuestros propios eventos de puntero.
+  const herramientaActual = useRef(herramienta);
+  herramientaActual.current = herramienta;
+  useEffect(() => {
+    const c = lienzo.current;
+    if (!c) return;
+    const cancelar = (e: TouchEvent) => {
+      const h = herramientaActual.current;
+      if (h === "mover" || h === "texto" || !e.cancelable) return;
+      e.preventDefault();
+    };
+    c.addEventListener("touchstart", cancelar, { passive: false });
+    c.addEventListener("touchmove", cancelar, { passive: false });
+    c.addEventListener("touchend", cancelar, { passive: false });
+    return () => {
+      c.removeEventListener("touchstart", cancelar);
+      c.removeEventListener("touchmove", cancelar);
+      c.removeEventListener("touchend", cancelar);
+    };
+  }, []);
+
+  // Diagnóstico (abrir el apunte con ?diagnostico): muestra qué recibe la
+  // hoja del lápiz o del dedo, para revisar problemas en una tablet.
+  const [diagnostico, setDiagnostico] = useState<string[] | null>(null);
+  useEffect(() => {
+    const c = lienzo.current;
+    if (!c || !new URLSearchParams(location.search).has("diagnostico")) return;
+    setDiagnostico([]);
+    let soltado = 0;
+    const anotar = (linea: string) => setDiagnostico((d) => [linea, ...(d ?? [])].slice(0, 8));
+    const bajar = (e: PointerEvent) => {
+      const espera = soltado ? `${Math.round(e.timeStamp - soltado)} ms después de soltar` : "primero";
+      anotar(`baja ${e.pointerType} (ancho ${Math.round(e.width)}) · ${espera}`);
+    };
+    const soltar = (e: PointerEvent) => {
+      soltado = e.timeStamp;
+      if (e.type === "pointercancel") anotar(`el navegador canceló el ${e.pointerType}`);
+    };
+    c.addEventListener("pointerdown", bajar, true);
+    c.addEventListener("pointerup", soltar, true);
+    c.addEventListener("pointercancel", soltar, true);
+    return () => {
+      c.removeEventListener("pointerdown", bajar, true);
+      c.removeEventListener("pointerup", soltar, true);
+      c.removeEventListener("pointercancel", soltar, true);
+    };
+  }, []);
+
   // Recuerda si en este equipo se escribe con lápiz.
   useEffect(() => {
     try {
@@ -1725,6 +1776,11 @@ export function EditorPizarron({
           />
         )}
       </div>
+      {diagnostico && (
+        <pre aria-label="Diagnóstico del lápiz" className="whitespace-pre-wrap rounded-lg bg-superficie p-3 text-xs">
+          {diagnostico.length ? diagnostico.join("\n") : "Escribe en la hoja para ver lo que llega."}
+        </pre>
+      )}
       <p className="text-sm">
         En el celular o la tablet, muévete por la hoja con dos dedos. Si escribes con lápiz, puedes apoyar la mano en la pantalla: solo el lápiz escribe y con un dedo mueves la hoja.
       </p>
