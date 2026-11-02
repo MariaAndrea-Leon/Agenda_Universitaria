@@ -14,6 +14,7 @@ import {
   puntasFlecha,
   URL_IMAGEN,
   ALTO_MAXIMO,
+  ALTO_HOJA,
   altoUsado,
   ANCHO,
   cajaTexto,
@@ -1458,7 +1459,7 @@ export function EditorPizarron({
       const factor = 2.5;
       const anchoPt = 595.28;
       const altoPt = 841.89;
-      const porPagina = (ANCHO * altoPt) / anchoPt;
+      const porPagina = ALTO_HOJA;
       const hasta = Math.min(d.alto, Math.max(altoUsado(d) + 60, porPagina));
       const paginas: PaginaPdf[] = [];
       for (let y = 0; y < hasta - 1; y += porPagina) {
@@ -1783,6 +1784,23 @@ export function EditorPizarron({
           onPointerLeave={(e) => e.pointerType === "mouse" && trazo.current && alSoltar(e)}
         />
         <canvas ref={tinta} aria-hidden className="pointer-events-none absolute left-0 hidden w-full" />
+        {escala > 0 &&
+          Array.from({ length: Math.ceil(doc.current.alto / ALTO_HOJA) - 1 }, (_, i) => (
+            <div
+              key={i}
+              aria-hidden
+              data-hoja={i + 2}
+              className="pointer-events-none absolute inset-x-0 border-t-2 border-dashed"
+              style={{ top: (i + 1) * ALTO_HOJA * escala, borderColor: fondo.oscuro ? "rgba(255,255,255,0.4)" : "rgba(30,33,36,0.35)" }}
+            >
+              <span
+                className="absolute right-2 top-1 rounded px-1.5 text-xs font-medium"
+                style={{ color: fondo.oscuro ? "rgba(255,255,255,0.7)" : "rgba(30,33,36,0.6)" }}
+              >
+                Hoja {i + 2}
+              </span>
+            </div>
+          ))}
         {edicion && (
           <textarea
             ref={areaTexto}
