@@ -146,7 +146,8 @@ const esquemaDibujo = z.object({
         p: z.array(z.number().finite()).refine((p) => p.length % 3 === 0 && p.length >= 3),
       }),
     )
-    .max(20000),
+    // Unas 4.500 letras a mano por hoja llena: el tope alcanza para 14.000 de alto.
+    .max(200000),
   textos: z
     .array(
       z.object({

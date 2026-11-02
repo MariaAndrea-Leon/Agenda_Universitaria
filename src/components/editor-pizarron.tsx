@@ -238,6 +238,17 @@ export function imagenDe(ruta: string, alCargar?: () => void, origen = URL_IMAGE
   return img;
 }
 
+// Comprime en gzip si el navegador sabe hacerlo (Safari 16.4 o más nuevo).
+async function comprimir(texto: string): Promise<Uint8Array<ArrayBuffer> | null> {
+  if (typeof CompressionStream === "undefined") return null;
+  try {
+    const flujo = new Blob([texto]).stream().pipeThrough(new CompressionStream("gzip"));
+    return new Uint8Array(await new Response(flujo).arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+
 // Espera a que carguen las imágenes del dibujo (para descargarlo).
 export function cargarImagenes(d: Dibujo) {
   return Promise.all(
@@ -737,14 +748,20 @@ export function EditorPizarron({
       const { titulo, fecha, fondoId } = datosParaGuardar.current;
       let fallo = "";
       try {
-        const cuerpo = JSON.stringify({ titulo, fecha, fondo: fondoId, dibujo: doc.current, revision: revision.current });
+        const texto = JSON.stringify({ titulo, fecha, fondo: fondoId, dibujo: doc.current, revision: revision.current });
+        // Comprimido: el servidor no acepta envíos de más de 4,5 MB y un
+        // apunte largo escrito a mano los pasa (respondía 413).
+        const comprimido = await comprimir(texto);
+        const cuerpo = comprimido ?? texto;
         const respuesta = await fetch(`/api/apuntes/${apunte.id}`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: comprimido
+            ? { "Content-Type": "application/octet-stream", "X-Comprimido": "gzip" }
+            : { "Content-Type": "application/json" },
           body: cuerpo,
           // Así termina aunque se cierre la app (el navegador solo lo permite
           // con apuntes pequeños).
-          keepalive: cuerpo.length < 60000,
+          keepalive: (comprimido?.length ?? texto.length) < 60000,
           // Nunca se queda esperando: si no responde, se reintenta.
           signal: conLimite(20000),
         });
