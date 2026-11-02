@@ -1,3 +1,4 @@
+import { gunzipSync } from "node:zlib";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { FONDOS, validarDibujo } from "@/lib/pizarron";
@@ -18,6 +19,17 @@ const esquema = z.object({
   revision: z.number().int().min(1),
 });
 
+// El editor manda el apunte comprimido en gzip (ver comprimir en el editor).
+async function leerCuerpo(request: NextRequest): Promise<unknown> {
+  try {
+    if (request.headers.get("x-comprimido") !== "gzip") return await request.json();
+    const datos = gunzipSync(Buffer.from(await request.arrayBuffer()), { maxOutputLength: 64 * 1024 * 1024 });
+    return JSON.parse(datos.toString("utf8"));
+  } catch {
+    return null;
+  }
+}
+
 const responder = (error: string, estado: number, extra?: object) =>
   NextResponse.json({ error, ...extra }, { status: estado });
 
@@ -34,7 +46,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   } = await supabase.auth.getUser();
   if (!user) return responder(SIN_SESION, 401);
 
-  const datos = esquema.safeParse(await request.json().catch(() => null));
+  const datos = esquema.safeParse(await leerCuerpo(request));
   const dibujo = datos.success ? validarDibujo(datos.data.dibujo) : null;
   if (!datos.success || !dibujo) return responder("El apunte llegó incompleto. Se vuelve a intentar.", 400);
 
