@@ -9,6 +9,9 @@ export const ALTO_INICIAL = 1400;
 export const ALTO_EXTRA = 700;
 export const ALTO_MAXIMO = 14000;
 export const CUADRO = 25;
+// Alto de una hoja A4 (595,28 x 841,89 puntos) con el ancho de la pizarra:
+// así se parte el PDF y así se marcan las hojas en la pizarra.
+export const ALTO_HOJA = (ANCHO * 841.89) / 595.28;
 
 export type Herramienta = "lapiz" | "resaltador";
 
